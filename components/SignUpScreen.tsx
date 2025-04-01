@@ -1,9 +1,21 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  Alert,
+  Keyboard,
+  Platform,
+  KeyboardAvoidingView,
+  TouchableWithoutFeedback,
+} from 'react-native';
 import { supabase } from '../lib/supabase';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../app/navigation/types'; // adjust the path if needed
+import type { RootStackParamList } from '../app/navigation/types';
+import { Ionicons } from '@expo/vector-icons'; // adjust the path if needed
 
 export default function SignUpScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -20,62 +32,89 @@ export default function SignUpScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Create Account</Text>
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.container}>
+        <Text style={styles.title}>Create Account</Text>
+        <Text style={styles.label}>Email Address</Text>
 
-      <TextInput
-        placeholder="Email Address"
-        placeholderTextColor="#888"
-        style={styles.input}
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-      />
-      <TextInput
-        placeholder="Create Password"
-        placeholderTextColor="#888"
-        style={styles.input}
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-      />
-
-      <TouchableOpacity style={styles.button} onPress={handleSignUp} disabled={loading}>
-        <Text style={styles.buttonText}>{loading ? 'Loading...' : 'Continue'}</Text>
-      </TouchableOpacity>
-    </View>
+        <View style={styles.inputWrapper}>
+          <Ionicons name="mail-outline" size={18} color="#aaa" style={styles.icon} />
+          <TextInput
+            placeholder="Email"
+            placeholderTextColor="#888"
+            style={styles.input}
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+          />
+        </View>
+        <Text style={styles.label}>Password</Text>
+        <View style={styles.inputWrapper}>
+          <Ionicons name="shield-checkmark-outline" size={18} color="#aaa" style={styles.icon} />
+          <TextInput
+            placeholder="Create Password"
+            placeholderTextColor="#888"
+            style={styles.input}
+            secureTextEntry
+            value={password}
+            onChangeText={setPassword}
+          />
+        </View>
+        <TouchableOpacity style={styles.button} onPress={handleSignUp} disabled={loading}>
+          <Text style={styles.buttonText}>{loading ? 'Loading...' : 'Continue'}</Text>
+        </TouchableOpacity>
+      </KeyboardAvoidingView>
+    </TouchableWithoutFeedback>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f1117',
+    backgroundColor: '#1C2129',
     padding: 20,
     justifyContent: 'center',
   },
   title: {
-    color: 'white',
-    fontSize: 22,
+    color: '#fff',
+    fontSize: 24,
     fontWeight: '600',
-    marginBottom: 30,
-    textAlign: 'center',
+    alignSelf: 'center',
+    marginBottom: 40,
+  },
+  label: {
+    color: '#fff',
+    marginBottom: 5,
+    marginTop: 15,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2a2f3a',
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    height: 50,
+  },
+  icon: {
+    marginRight: 6,
   },
   input: {
-    backgroundColor: '#1d222a',
-    borderRadius: 12,
-    color: 'white',
-    padding: 16,
-    marginBottom: 16,
+    flex: 1,
+    color: '#fff',
     fontSize: 15,
   },
   button: {
-    backgroundColor: 'white',
-    padding: 16,
+    backgroundColor: '#fff',
     borderRadius: 30,
+    paddingVertical: 15,
+    marginTop: 40,
     alignItems: 'center',
   },
   buttonText: {
-    fontWeight: '600',
+    color: '#1C2129',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });

@@ -9,6 +9,8 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
@@ -32,54 +34,56 @@ export default function Auth() {
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={styles.container}>
-      <Text style={styles.title}>Sign In</Text>
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.container}>
+        <Text style={styles.title}>Sign In</Text>
+        <Text style={styles.label}>E-mail</Text>
 
-      <Text style={styles.label}>E-mail</Text>
-      <View style={styles.inputWrapper}>
-        <Ionicons name="mail-outline" size={18} color="#aaa" style={styles.icon} />
-        <TextInput
-          placeholder="Email"
-          placeholderTextColor="#555"
-          style={styles.input}
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-        />
-      </View>
-
-      <Text style={styles.label}>Password</Text>
-      <View style={styles.inputWrapper}>
-        <Ionicons name="shield-checkmark-outline" size={18} color="#aaa" style={styles.icon} />
-        <TextInput
-          placeholder="Password"
-          placeholderTextColor="#555"
-          style={styles.input}
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry={secure}
-        />
-        <TouchableOpacity onPress={() => setSecure(!secure)}>
-          <Ionicons
-            name={secure ? 'eye-off-outline' : 'eye-outline'}
-            size={18}
-            color="#aaa"
-            style={styles.icon}
+        <View style={styles.inputWrapper}>
+          <Ionicons name="mail-outline" size={18} color="#aaa" style={styles.icon} />
+          <TextInput
+            placeholder="Email"
+            placeholderTextColor="#555"
+            style={styles.input}
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
           />
+        </View>
+
+        <Text style={styles.label}>Password</Text>
+        <View style={styles.inputWrapper}>
+          <Ionicons name="shield-checkmark-outline" size={18} color="#aaa" style={styles.icon} />
+          <TextInput
+            placeholder="Password"
+            placeholderTextColor="#555"
+            style={styles.input}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={secure}
+          />
+          <TouchableOpacity onPress={() => setSecure(!secure)}>
+            <Ionicons
+              name={secure ? 'eye-off-outline' : 'eye-outline'}
+              size={18}
+              color="#aaa"
+              style={styles.icon}
+            />
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity style={styles.forgot}>
+          <Ionicons name="information-circle-outline" size={14} color="#80f17e" />
+          <Text style={styles.forgotText}> Forgot Password?</Text>
         </TouchableOpacity>
-      </View>
 
-      <TouchableOpacity style={styles.forgot}>
-        <Ionicons name="information-circle-outline" size={14} color="#80f17e" />
-        <Text style={styles.forgotText}> Forgot Password?</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.button} onPress={signInWithEmail} disabled={loading}>
-        <Text style={styles.buttonText}>Sign In</Text>
-      </TouchableOpacity>
-    </KeyboardAvoidingView>
+        <TouchableOpacity style={styles.button} onPress={signInWithEmail} disabled={loading}>
+          <Text style={styles.buttonText}>Sign In</Text>
+        </TouchableOpacity>
+      </KeyboardAvoidingView>
+    </TouchableWithoutFeedback>
   );
 }
 
@@ -135,7 +139,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   buttonText: {
-    color: '#1d222a',
+    color: '#1C2129',
     fontWeight: 'bold',
     fontSize: 16,
   },

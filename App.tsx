@@ -1,12 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import {
-  View,
-  TextInput,
-  StyleSheet,
-  TouchableWithoutFeedback,
-  Keyboard,
-  Animated,
-} from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, TextInput, StyleSheet, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import MapView, { Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { NavigationContainer } from '@react-navigation/native';
@@ -29,12 +22,6 @@ const RootStack = createNativeStackNavigator();
 const HomeScreen = () => {
   const [region, setRegion] = useState<Region | null>(null);
   const [searchText, setSearchText] = useState('');
-  const [searchActive, setSearchActive] = useState(false);
-
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(50)).current;
-  const barAnim = useRef(new Animated.Value(50)).current;
-  const barOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     (async () => {
@@ -51,89 +38,19 @@ const HomeScreen = () => {
     })();
   }, []);
 
-  const openSearch = () => {
-    setSearchActive(true);
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 250,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 250,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  };
-
-  const closeSearch = () => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 250,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 50,
-        duration: 250,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      setSearchActive(false);
-      barAnim.setValue(30);
-      barOpacity.setValue(0);
-      Animated.parallel([
-        Animated.timing(barAnim, {
-          toValue: 0,
-          duration: 100,
-          useNativeDriver: true,
-        }),
-        Animated.timing(barOpacity, {
-          toValue: 1,
-          duration: 10,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    });
-  };
-
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={styles.container}>
         {region && <MapView initialRegion={region} showsUserLocation style={styles.map} />}
-        {searchActive ? (
-          <Animated.View
-            style={[
-              styles.fullScreenSearch,
-              { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
-            ]}>
-            <TextInput
-              value={searchText}
-              onChangeText={setSearchText}
-              autoFocus
-              placeholder="Enter destination"
-              placeholderTextColor="#aaa"
-              style={styles.fullInput}
-              onBlur={closeSearch}
-            />
-          </Animated.View>
-        ) : (
-          <Animated.View
-            style={[
-              styles.searchWrapper,
-              { opacity: barOpacity, transform: [{ translateY: barAnim }] },
-            ]}>
-            <TextInput
-              value={searchText}
-              onChangeText={setSearchText}
-              placeholder="Enter destination"
-              placeholderTextColor="#aaa"
-              onFocus={openSearch}
-              style={styles.searchBar}
-            />
-          </Animated.View>
-        )}
+        <View style={styles.searchWrapper}>
+          <TextInput
+            value={searchText}
+            onChangeText={setSearchText}
+            placeholder="Enter destination"
+            placeholderTextColor="#aaa"
+            style={styles.searchBar}
+          />
+        </View>
       </View>
     </TouchableWithoutFeedback>
   );
@@ -160,7 +77,7 @@ export default function App() {
         setOnboardingSeen(profile?.onboarding_seen ?? false);
       }
 
-      setLoading(false);
+      setTimeout(() => setLoading(false), 1000);
     };
 
     loadSession();
