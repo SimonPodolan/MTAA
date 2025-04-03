@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, TextInput, StyleSheet, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text, Keyboard, StatusBar } from 'react-native';
 import MapView, { Region } from 'react-native-maps';
 import * as Location from 'expo-location';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, useFocusEffect } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,13 +15,25 @@ import WelcomeScreen from './components/WelcomeScreen';
 import SignUpScreen from './components/SignUpScreen';
 import SuccessScreen from './components/SuccessScreen';
 import type { Session } from '@supabase/supabase-js';
+import OrderScreen from './components/OrderScreen';
 
 const Tab = createBottomTabNavigator();
 const RootStack = createNativeStackNavigator();
 
-const HomeScreen = () => {
+/**
+ * Samostatný komponent pre LocationScreen
+ * (odstráni varovanie o inline funkcii v Tab.Screen)
+ */
+function LocationScreen() {
+  return <View style={{ flex: 1, backgroundColor: '#1d222a' }} />;
+}
+
+const HomeScreen = ({ navigation }: any) => {
   const [region, setRegion] = useState<Region | null>(null);
-  const [searchText, setSearchText] = useState('');
+
+  useFocusEffect(() => {
+    StatusBar.setBarStyle('dark-content');
+  });
 
   useEffect(() => {
     (async () => {
@@ -39,24 +51,50 @@ const HomeScreen = () => {
   }, []);
 
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <View style={styles.container}>
-        {region && <MapView initialRegion={region} showsUserLocation style={styles.map} />}
-        <View style={styles.searchWrapper}>
-          <TextInput
-            value={searchText}
-            onChangeText={setSearchText}
-            placeholder="Enter destination"
-            placeholderTextColor="#aaa"
-            style={styles.searchBar}
-          />
-        </View>
+    <View style={styles.container}>
+      {region && <MapView initialRegion={region} showsUserLocation style={styles.map} />}
+      <View style={styles.searchWrapper}>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('Order')}
+          style={styles.searchBar}
+          activeOpacity={0.7}>
+          <Text style={styles.searchText}>Enter destination</Text>
+        </TouchableOpacity>
       </View>
-    </TouchableWithoutFeedback>
+    </View>
   );
 };
 
-const DummyScreen = () => <View style={{ flex: 1, backgroundColor: '#1d222a' }} />;
+type MainTabsProps = {
+  session: Session | null;
+  navigation: any;
+};
+
+const MainTabs = ({ session, navigation }: MainTabsProps) => {
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarStyle: { backgroundColor: '#1d222a' },
+        tabBarActiveTintColor: '#80f17e',
+        tabBarIcon: ({ color, size }) => {
+          let iconName: React.ComponentProps<typeof Ionicons>['name'] = 'map';
+          if (route.name === 'Location') iconName = 'location';
+          if (route.name === 'Profile') iconName = 'person';
+          return <Ionicons name={iconName} size={size} color={color} />;
+        },
+      })}>
+      {/* Home */}
+      <Tab.Screen name="Home">{() => <HomeScreen navigation={navigation} />}</Tab.Screen>
+
+      {/* Location - tu použijeme samostatný komponent */}
+      <Tab.Screen name="Location" component={LocationScreen} />
+
+      {/* Profile */}
+      <Tab.Screen name="Profile">{() => <ProfileScreen session={session} />}</Tab.Screen>
+    </Tab.Navigator>
+  );
+};
 
 export default function App() {
   const [loading, setLoading] = useState(true);
@@ -104,22 +142,17 @@ export default function App() {
           <RootStack.Screen name="SignIn" component={AuthScreen} />
         </RootStack.Navigator>
       ) : (
-        <Tab.Navigator
-          screenOptions={({ route }) => ({
-            headerShown: false,
-            tabBarStyle: { backgroundColor: '#1d222a' },
-            tabBarActiveTintColor: '#80f17e',
-            tabBarIcon: ({ color, size }) => {
-              let iconName: React.ComponentProps<typeof Ionicons>['name'] = 'map';
-              if (route.name === 'Location') iconName = 'location';
-              if (route.name === 'Profile') iconName = 'person';
-              return <Ionicons name={iconName} size={size} color={color} />;
-            },
-          })}>
-          <Tab.Screen name="Home" component={HomeScreen} />
-          <Tab.Screen name="Location" component={DummyScreen} />
-          <Tab.Screen name="Profile">{() => <ProfileScreen session={session} />}</Tab.Screen>
-        </Tab.Navigator>
+        <RootStack.Navigator screenOptions={{ headerShown: false }}>
+          {/* Namiesto component={MainTabs} posielame session + navigation */}
+          <RootStack.Screen name="MainTabs">
+            {({ navigation }) => <MainTabs navigation={navigation} session={session} />}
+          </RootStack.Screen>
+          <RootStack.Screen
+            name="Order"
+            component={OrderScreen}
+            options={{ presentation: 'modal' }}
+          />
+        </RootStack.Navigator>
       )}
     </NavigationContainer>
   );
@@ -144,11 +177,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 20,
     borderRadius: 12,
-    color: 'white',
-    fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#aaa',
     width: '90%',
-    marginTop: 10,
-    elevation: 5,
+  },
+  searchText: {
+    color: '#aaa',
+    fontSize: 16,
   },
   fullScreenSearch: {
     ...StyleSheet.absoluteFillObject,

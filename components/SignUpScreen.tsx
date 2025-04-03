@@ -21,13 +21,42 @@ export default function SignUpScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [FirstName, setFirstName] = useState('');
+  const [LastName, setLastName] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSignUp = async () => {
+    if (password !== confirmPassword) {
+      Alert.alert('Error', 'Passwords do not match');
+      return;
+    }
+
     setLoading(true);
-    const { error } = await supabase.auth.signUp({ email, password });
-    if (error) Alert.alert('Error', error.message);
-    else navigation.navigate('Success');
+    const { data, error } = await supabase.auth.signUp({ email, password });
+
+    if (error) {
+      Alert.alert('Error', error.message);
+      setLoading(false);
+      return;
+    }
+
+    const user = data.user;
+    if (user) {
+      const { error: insertError } = await supabase.from('profiles').insert({
+        id: user.id,
+        first_name: FirstName,
+        last_name: LastName,
+        onboarding_seen: true,
+      });
+
+      if (insertError) {
+        Alert.alert('Insert error', insertError.message);
+      } else {
+        navigation.navigate('Success');
+      }
+    }
+
     setLoading(false);
   };
 
@@ -37,8 +66,32 @@ export default function SignUpScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.container}>
         <Text style={styles.title}>Create Account</Text>
-        <Text style={styles.label}>Email Address</Text>
 
+        <Text style={styles.label}>First Name</Text>
+        <View style={styles.inputWrapper}>
+          <Ionicons name="person-outline" size={18} color="#aaa" style={styles.icon} />
+          <TextInput
+            placeholder="Name"
+            placeholderTextColor="#888"
+            style={styles.input}
+            value={FirstName}
+            onChangeText={setFirstName}
+          />
+        </View>
+
+        <Text style={styles.label}>Last Name</Text>
+        <View style={styles.inputWrapper}>
+          <Ionicons name="person-outline" size={18} color="#aaa" style={styles.icon} />
+          <TextInput
+            placeholder="Surname"
+            placeholderTextColor="#888"
+            style={styles.input}
+            value={LastName}
+            onChangeText={setLastName}
+          />
+        </View>
+
+        <Text style={styles.label}>Email Address</Text>
         <View style={styles.inputWrapper}>
           <Ionicons name="mail-outline" size={18} color="#aaa" style={styles.icon} />
           <TextInput
@@ -60,6 +113,18 @@ export default function SignUpScreen() {
             secureTextEntry
             value={password}
             onChangeText={setPassword}
+          />
+        </View>
+        <Text style={styles.label}>Confirm Password</Text>
+        <View style={styles.inputWrapper}>
+          <Ionicons name="shield-checkmark-outline" size={18} color="#aaa" style={styles.icon} />
+          <TextInput
+            placeholder="Confirm Password"
+            placeholderTextColor="#888"
+            style={styles.input}
+            secureTextEntry
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
           />
         </View>
         <TouchableOpacity style={styles.button} onPress={handleSignUp} disabled={loading}>

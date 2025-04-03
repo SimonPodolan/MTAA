@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 import type { Session } from '@supabase/supabase-js';
+import { StatusBar } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -28,13 +30,37 @@ export const ProfileScreen = ({ session }: { session: Session }) => {
     if (error) Alert.alert('Error', error.message);
   };
 
+  const [fullName, setFullName] = useState('');
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('first_name, last_name')
+        .eq('id', session.user.id)
+        .single();
+
+      if (error) {
+        console.error('Error fetching profile:', error);
+      } else {
+        setFullName(`${data.first_name} ${data.last_name}`);
+      }
+    };
+
+    fetchProfile();
+  }, []);
+
+  useFocusEffect(() => {
+    StatusBar.setBarStyle('light-content');
+  });
+
   return (
     <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle={'light-content'} />
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.header}>My Profile</Text>
         <TouchableOpacity style={styles.card}>
           <View>
-            <Text style={styles.cardTitle}>Your Name</Text>
+            <Text style={styles.cardTitle}>{fullName}</Text>
             <Text style={styles.cardSubtitle}>{session.user.email}</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="#fff" />
