@@ -11,6 +11,8 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import Slider from '@react-native-community/slider';
+import * as Location from 'expo-location';
+import { Ionicons } from '@expo/vector-icons';
 
 const OrderScreen = () => {
   useFocusEffect(() => {
@@ -32,10 +34,10 @@ const OrderScreen = () => {
     try {
       setLoading(true);
       const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=5`
+        `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(query)}&apiKey=d18dec65432c48589fbb9bde6f471e36`
       );
       const data = await res.json();
-      const names = data.map((item: any) => item.display_name);
+      const names = data.features.map((item: any) => item.properties.formatted);
       setSuggestions(names);
     } catch (err) {
       console.error(err);
@@ -58,15 +60,40 @@ const OrderScreen = () => {
     setSuggestions([]);
   };
 
+  const getCurrentLocation = async () => {
+    try {
+      setLoading(true);
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') return;
+
+      const loc = await Location.getCurrentPositionAsync({});
+      const res = await fetch(
+        `https://api.geoapify.com/v1/geocode/reverse?lat=${loc.coords.latitude}&lon=${loc.coords.longitude}&apiKey=d18dec65432c48589fbb9bde6f471e36`
+      );
+      const data = await res.json();
+      const name = data.features?.[0]?.properties?.formatted;
+      if (name) setLocation(name);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <TextInput
-        value={location}
-        onChangeText={setLocation}
-        style={styles.input}
-        placeholder="Enter location"
-        placeholderTextColor="#aaa"
-      />
+      <View style={styles.locationRow}>
+        <TextInput
+          value={location}
+          onChangeText={setLocation}
+          style={styles.input}
+          placeholder="Enter location"
+          placeholderTextColor="#aaa"
+        />
+        <TouchableOpacity style={styles.gpsButton} onPress={getCurrentLocation}>
+          <Ionicons name="navigate-circle-outline" size={35} color="#80f17e" />
+        </TouchableOpacity>
+      </View>
 
       {loading && <ActivityIndicator color="#80f17e" style={{ marginBottom: 10 }} />}
 
@@ -156,6 +183,9 @@ const styles = StyleSheet.create({
     padding: 12,
     color: 'white',
     marginBottom: 20,
+    flex: 1,
+    marginRight: 0,
+    marginLeft: 5,
   },
   suggestionsContainer: {
     backgroundColor: '#2a2f3a',
@@ -258,5 +288,16 @@ const styles = StyleSheet.create({
     borderColor: '#80f17e',
     borderRadius: 20,
     marginHorizontal: 1,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  gpsButton: {
+    borderRadius: 8,
+    padding: 8,
+    color: 'white',
+    marginBottom: 20,
   },
 });

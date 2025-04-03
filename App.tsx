@@ -84,14 +84,13 @@ const MainTabs = ({ session, navigation }: MainTabsProps) => {
           return <Ionicons name={iconName} size={size} color={color} />;
         },
       })}>
-      {/* Home */}
       <Tab.Screen name="Home">{() => <HomeScreen navigation={navigation} />}</Tab.Screen>
 
-      {/* Location - tu použijeme samostatný komponent */}
       <Tab.Screen name="Location" component={LocationScreen} />
 
-      {/* Profile */}
-      <Tab.Screen name="Profile">{() => <ProfileScreen session={session} />}</Tab.Screen>
+      {session && (
+        <Tab.Screen name="Profile">{() => <ProfileScreen session={session} />}</Tab.Screen>
+      )}
     </Tab.Navigator>
   );
 };
@@ -143,7 +142,6 @@ export default function App() {
         </RootStack.Navigator>
       ) : (
         <RootStack.Navigator screenOptions={{ headerShown: false }}>
-          {/* Namiesto component={MainTabs} posielame session + navigation */}
           <RootStack.Screen name="MainTabs">
             {({ navigation }) => <MainTabs navigation={navigation} session={session} />}
           </RootStack.Screen>
