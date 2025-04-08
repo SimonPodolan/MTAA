@@ -9,10 +9,12 @@ import {
   StatusBar,
   ActivityIndicator,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import Slider from '@react-native-community/slider';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
+import { supabase } from '../lib/supabase';
+
 
 const OrderScreen = () => {
   useFocusEffect(() => {
@@ -29,6 +31,7 @@ const OrderScreen = () => {
 
   const pricePerLiter = 1.81;
   const estimatedPrice = (pricePerLiter * amount).toFixed(2);
+  const navigation = useNavigation();
 
   const fetchLocations = async (query: string) => {
     try {
@@ -80,6 +83,57 @@ const OrderScreen = () => {
     }
   };
 
+  const handleCreateOrder = async () => {
+    try {
+      setLoading(true);
+
+      // Získaj usera zo session
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        alert('Please log in to create an order');
+        return;
+      }
+
+      // Skontroluj, či profil existuje v "profiles"
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError || !profile) {
+        alert('User profile not found. Please complete your registration first.');
+        return;
+      }
+
+      // Vlož objednávku do databázy
+      const { error } = await supabase.from('orders').insert({
+        user_id: user.id,
+        location,
+        fuel_type: fuelType,
+        amount,
+        company,
+        price_per_liter: pricePerLiter,
+        price: Number(estimatedPrice),
+        status: 'Pending',
+        created_at: new Date().toISOString(),
+      });
+
+      if (error) {
+        console.error('Error creating order:', error);
+        alert('There was an error creating your order. Please try again.');
+      } else {
+        alert('Order successfully created!');
+        navigation.navigate('Success' as never);
+      }
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      alert('An unexpected error occurred.');
+    } finally {
+      setLoading(false);
+    }
+  };
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.locationRow}>
@@ -161,9 +215,10 @@ const OrderScreen = () => {
       <Text style={styles.summary}>Cost per liter: {pricePerLiter}$</Text>
       <Text style={styles.summary}>Estimated price: {estimatedPrice}$</Text>
 
-      <TouchableOpacity style={styles.nextButton}>
+      <TouchableOpacity style={styles.nextButton} onPress={handleCreateOrder}>
         <Text style={styles.nextButtonText}>Next</Text>
       </TouchableOpacity>
+
     </ScrollView>
   );
 };

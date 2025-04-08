@@ -32,7 +32,7 @@ export const ProfileScreen = ({ session }: { session: Session }) => {
     const { error: updateError } = await supabase
       .from('profiles')
       .update({ onboarding_seen: false })
-      .eq('id', session.user.id);
+      .eq('user_id', session.user.id);
 
     if (updateError) {
       Alert.alert('Error', updateError.message);
@@ -53,7 +53,7 @@ export const ProfileScreen = ({ session }: { session: Session }) => {
       const { data, error } = await supabase
         .from('profiles')
         .select('first_name, last_name')
-        .eq('id', session.user.id)
+        .eq('user_id', session.user.id)
         .single();
 
       if (error) {

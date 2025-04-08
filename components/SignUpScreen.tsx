@@ -33,6 +33,7 @@ export default function SignUpScreen() {
     }
 
     setLoading(true);
+
     const { data, error } = await supabase.auth.signUp({ email, password });
 
     if (error) {
@@ -42,17 +43,15 @@ export default function SignUpScreen() {
     }
 
     const user = data.user;
+
     if (user) {
-      const { error: insertError } = await supabase.from('profiles').insert({
-        id: user.id,
+      await supabase.from('profiles').insert({
+        user_id: user.id,
         first_name: FirstName,
         last_name: LastName,
         onboarding_seen: true,
       });
-
-      if (insertError) {
-        Alert.alert('Insert error', insertError.message);
-      }
+      navigation.navigate('Success');
     }
 
     setLoading(false);

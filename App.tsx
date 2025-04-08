@@ -106,12 +106,27 @@ export default function App() {
       setSession(data.session);
 
       if (data.session?.user?.id) {
-        const { data: profile } = await supabase
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
-          .select('onboarding_seen')
-          .eq('id', data.session.user.id)
+          .select('*')
+          .eq('user_id', data.session.user.id)
           .single();
-        setOnboardingSeen(profile?.onboarding_seen ?? false);
+
+        if (!profile) {
+
+          const { error: insertError } = await supabase.from('profiles').insert({
+            user_id: data.session.user.id,
+            first_name: 'First name',
+            last_name: 'Last name',
+            onboarding_seen: true,
+          });
+
+          if (insertError) {
+            console.error('Error creating profile:', insertError.message);
+          } else {
+            console.log('Profile successfully created!');
+          }
+        }
       }
 
       setTimeout(() => setLoading(false), 1000);
@@ -119,9 +134,34 @@ export default function App() {
 
     loadSession();
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
+
+      if (session?.user?.id) {
+        // ✅ Pridaj túto kontrolu do listenera
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .single();
+
+        if (!profile && !profileError) {
+          const { error: insertError } = await supabase.from('profiles').insert({
+            user_id: session.user.id,
+            first_name: 'First name',
+            last_name: 'Last name',
+            onboarding_seen: true,
+          });
+
+          if (insertError) {
+            console.error('Error creating profile:', insertError.message);
+          } else {
+            console.log('Profile created via auth state change!');
+          }
+        }
+      }
     });
+
 
     return () => {
       listener.subscription.unsubscribe();
