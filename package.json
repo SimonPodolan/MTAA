@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.1.2",
+    "@react-native-community/slider": "^4.5.6",
     "@react-navigation/bottom-tabs": "^7.3.2",
     "@react-navigation/native-stack": "^7.3.2",
     "@rneui/themed": "^4.0.0-rc.8",

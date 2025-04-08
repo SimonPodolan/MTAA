@@ -7,12 +7,12 @@ import {
   ScrollView,
   SafeAreaView,
   Alert,
+  StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 import type { Session } from '@supabase/supabase-js';
-import { StatusBar } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -25,10 +25,27 @@ const Option = ({ icon, label }: { icon: IconName; label: string }) => (
 );
 
 export const ProfileScreen = ({ session }: { session: Session }) => {
+  const navigation = useNavigation<any>();
+
   const handleLogout = async () => {
+    // Zmeň onboarding_seen v databáze
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ onboarding_seen: false })
+      .eq('id', session.user.id);
+
+    if (updateError) {
+      Alert.alert('Error', updateError.message);
+      return;
+    }
+
+    // Odhlásenie
     const { error } = await supabase.auth.signOut();
-    if (error) Alert.alert('Error', error.message);
+    if (error) {
+      Alert.alert('Error', error.message);
+    }
   };
+
 
   const [fullName, setFullName] = useState('');
   useEffect(() => {

@@ -52,8 +52,6 @@ export default function SignUpScreen() {
 
       if (insertError) {
         Alert.alert('Insert error', insertError.message);
-      } else {
-        navigation.navigate('Success');
       }
     }
 
