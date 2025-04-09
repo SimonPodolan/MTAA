@@ -5,8 +5,9 @@ import {
   SectionList,
   StyleSheet,
   ActivityIndicator,
-  RefreshControl,
   TouchableOpacity,
+  Alert,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
@@ -38,19 +39,15 @@ export default function HistoryScreen({ session }: HistoryScreenProps) {
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [isEditing, setIsEditing] = useState<boolean>(false);
 
-  // Pre navigáciu k detailom objednávky
+  // Navigácia na detail
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-
-  // Pomocná funkcia na skrátenie textu
-  const truncateText = (text: string, maxLength: number) => {
-    return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
-  };
 
   useEffect(() => {
     fetchUserOrders();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Načítanie zoznamu objednávok
   const fetchUserOrders = async () => {
     try {
       setLoading(true);
@@ -72,14 +69,47 @@ export default function HistoryScreen({ session }: HistoryScreenProps) {
     }
   };
 
-  // Funkcia pre pull-to-refresh
+  // Obnovenie obrazovky "potiahnutím nadol"
   const handleRefresh = async () => {
     setRefreshing(true);
     await fetchUserOrders();
     setRefreshing(false);
   };
 
-  // Zoskupenie objednávok podľa mesiaca a roku (napr. "Oct 2023")
+  // Funkcia na vymazanie objednávky (s potvrdením)
+  const handleDeleteOrder = async (order_id: number) => {
+    Alert.alert(
+      'Delete Order',
+      'Are you sure you want to delete this order?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from('orders')
+                .delete()
+                .eq('order_id', order_id);
+
+              if (error) {
+                Alert.alert('Error', error.message);
+              } else {
+                // Odstránime objednávku aj lokálne, aby sme nemuseli znovu načítavať celý zoznam
+                setOrders((prev) => prev.filter((o) => o.order_id !== order_id));
+              }
+            } catch (err) {
+              console.error('Unexpected error:', err);
+            }
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
+  // Zoskupenie objednávok podľa mesiaca a roku
   const groupOrdersByMonth = (orders: Order[]) => {
     const grouped: Record<string, Order[]> = {};
     orders.forEach((order) => {
@@ -92,6 +122,7 @@ export default function HistoryScreen({ session }: HistoryScreenProps) {
       }
       grouped[groupTitle].push(order);
     });
+
     return Object.keys(grouped).map((title) => ({
       title,
       data: grouped[title],
@@ -100,10 +131,12 @@ export default function HistoryScreen({ session }: HistoryScreenProps) {
 
   const sections = groupOrdersByMonth(orders);
 
+  // Render sekcie
   const renderSectionHeader = ({ section: { title } }: { section: { title: string } }) => (
     <Text style={styles.sectionTitle}>{title}</Text>
   );
 
+  // Render jednej objednávky
   const renderItem = ({ item }: { item: Order }) => {
     const dateObj = new Date(item.created_at);
     const day = dateObj.getDate();
@@ -111,30 +144,46 @@ export default function HistoryScreen({ session }: HistoryScreenProps) {
     const hours = dateObj.getHours();
     const minutes = dateObj.getMinutes();
 
-    return (
-      <TouchableOpacity
-        onPress={() => {
-          navigation.navigate('HistoryDetail', { order: item });
-        }}
-        style={styles.itemContainer}
-      >
-        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-          <Ionicons name="car-outline" size={32} color="#80f17e" style={{ marginRight: 10 }} />
-          <View>
-            <Text style={styles.itemLocation}>{item.location}</Text>
-            <Text style={styles.itemDate}>
-              {day} {monthName}, {hours}:{minutes < 10 ? '0' + minutes : minutes}
-            </Text>
+    // Ak je isEditing vypnuté => celý riadok je klikateľný a naviguje do detailu
+    if (!isEditing) {
+      return (
+        <TouchableOpacity
+          onPress={() => navigation.navigate('HistoryDetail', { order: item })}
+          style={styles.itemContainer}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+            <Ionicons name="car-outline" size={32} color="#80f17e" style={{ marginRight: 10 }} />
+            <View>
+              <Text style={styles.itemLocation}>{item.location}</Text>
+              <Text style={styles.itemDate}>
+                {day} {monthName}, {hours}:{minutes < 10 ? '0' + minutes : minutes}
+              </Text>
+            </View>
           </View>
-        </View>
-        {isEditing && (
-          <TouchableOpacity onPress={() => {/* vymazanie funkcia */}} style={styles.deleteButton}>
+          <Text style={styles.itemPrice}>{Number(item.price)?.toFixed(2)}€</Text>
+        </TouchableOpacity>
+      );
+    } else {
+      // Ak je isEditing zapnuté => zobrazíme koš a umožníme vymazať
+      return (
+        <View style={styles.itemContainer}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+            <Ionicons name="car-outline" size={32} color="#80f17e" style={{ marginRight: 10 }} />
+            <View>
+              <Text style={styles.itemLocation}>{item.location}</Text>
+              <Text style={styles.itemDate}>
+                {day} {monthName}, {hours}:{minutes < 10 ? '0' + minutes : minutes}
+              </Text>
+            </View>
+          </View>
+          {/* Tlačidlo vymazania */}
+          <TouchableOpacity onPress={() => handleDeleteOrder(item.order_id)} style={styles.deleteButton}>
             <Ionicons name="trash-outline" size={24} color="red" />
           </TouchableOpacity>
-        )}
-        <Text style={styles.itemPrice}>{Number(item.price)?.toFixed(2)}€</Text>
-      </TouchableOpacity>
-    );
+          <Text style={styles.itemPrice}>{Number(item.price)?.toFixed(2)}€</Text>
+        </View>
+      );
+    }
   };
 
   if (loading) {
@@ -147,9 +196,9 @@ export default function HistoryScreen({ session }: HistoryScreenProps) {
 
   return (
     <View style={styles.container}>
-      {/* Header s tlačidlom upraviť a názvom */}
+      {/* Header s tlačidlom "Edit" */}
       <View style={styles.header}>
-        <Text style={styles.title}>{truncateText("My Rides", 25)}</Text>
+        <Text style={styles.title}>My Rides</Text>
         <TouchableOpacity onPress={() => setIsEditing(!isEditing)} style={styles.editButton}>
           <Ionicons name="create-outline" size={24} color="#80f17e" />
         </TouchableOpacity>
@@ -191,13 +240,13 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    paddingTop: 20,
     color: '#fff',
     flex: 1,
+    paddingTop : 30,
   },
   editButton: {
     padding: 8,
-    paddingTop:20,
+    paddingTop: 30,
   },
   sectionTitle: {
     fontSize: 16,

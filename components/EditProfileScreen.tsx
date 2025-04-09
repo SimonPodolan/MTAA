@@ -101,40 +101,6 @@ export default function EditProfileScreen() {
     }
   };
 
-  const handleDeleteAccount = async () => {
-    Alert.alert(
-      'Delete Account',
-      'Are you sure you want to delete your account? This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            setLoading(true);
-            const { error } = await supabase
-              .from('profiles')
-              .delete()
-              .eq('user_id', session.user.id);
-
-            if (error) {
-              Alert.alert('Error', error.message);
-              setLoading(false);
-              return;
-            }
-
-            await supabase.auth.signOut();
-            setLoading(false);
-            navigation.reset({
-              index: 0,
-              routes: [{ name: 'Welcome' as keyof RootStackParamList }],
-            });
-          },
-        },
-      ]
-    );
-  };
-
   return (
     <View style={styles.container}>
       {/* Header s tlačidlom späť naľavo a názvom vycentrovaným */}
@@ -180,9 +146,6 @@ export default function EditProfileScreen() {
         <Text style={styles.buttonText}>{loading ? 'Saving...' : 'Save Changes'}</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteAccount} disabled={loading}>
-        <Text style={styles.deleteButtonText}>Delete Account</Text>
-      </TouchableOpacity>
     </View>
   );
 }
@@ -237,17 +200,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
-  deleteButton: {
-    backgroundColor: '#ff4d4f',
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  deleteButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
+
   imagePicker: {
     alignSelf: 'center',
     marginBottom: 20,
