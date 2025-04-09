@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 import type { Session } from '@supabase/supabase-js';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { navigationRef } from '../App';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -28,7 +29,6 @@ export const ProfileScreen = ({ session }: { session: Session }) => {
   const navigation = useNavigation<any>();
 
   const handleLogout = async () => {
-    // Zmeň onboarding_seen v databáze
     const { error: updateError } = await supabase
       .from('profiles')
       .update({ onboarding_seen: false })
@@ -48,6 +48,7 @@ export const ProfileScreen = ({ session }: { session: Session }) => {
 
 
   const [fullName, setFullName] = useState('');
+
   useEffect(() => {
     const fetchProfile = async () => {
       const { data, error } = await supabase
@@ -75,13 +76,24 @@ export const ProfileScreen = ({ session }: { session: Session }) => {
       <StatusBar barStyle={'light-content'} />
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.header}>My Profile</Text>
-        <TouchableOpacity style={styles.card}>
+        <TouchableOpacity
+          style={styles.card}
+          onPress={() => {
+            if (navigationRef.isReady()) {
+              navigationRef.navigate('EditProfileScreen', { session });
+            } else {
+              console.error('Navigation is not ready');
+            }
+          }}
+        >
           <View>
             <Text style={styles.cardTitle}>{fullName}</Text>
             <Text style={styles.cardSubtitle}>{session.user.email}</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="#fff" />
         </TouchableOpacity>
+
+
 
         <Option icon="gift" label="Referrals and rewards" />
 
