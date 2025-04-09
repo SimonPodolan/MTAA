@@ -87,7 +87,6 @@ const OrderScreen = () => {
     try {
       setLoading(true);
 
-      // Získaj usera zo session
       const { data: { user } } = await supabase.auth.getUser();
 
       if (!user) {
@@ -95,11 +94,10 @@ const OrderScreen = () => {
         return;
       }
 
-      // Skontroluj, či profil existuje v "profiles"
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', user.id)
+        .eq('user_id', user.id)
         .single();
 
       if (profileError || !profile) {
@@ -125,7 +123,6 @@ const OrderScreen = () => {
         alert('There was an error creating your order. Please try again.');
       } else {
         alert('Order successfully created!');
-        navigation.navigate('Success' as never);
       }
     } catch (err) {
       console.error('Unexpected error:', err);

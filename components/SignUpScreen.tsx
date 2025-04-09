@@ -51,7 +51,6 @@ export default function SignUpScreen() {
         last_name: LastName,
         onboarding_seen: true,
       });
-      navigation.navigate('Success');
     }
 
     setLoading(false);
