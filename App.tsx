@@ -2,7 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, Keyboard, StatusBar } from 'react-native';
 import MapView, { Region } from 'react-native-maps';
 import * as Location from 'expo-location';
-import { NavigationContainer, useFocusEffect, createNavigationContainerRef } from '@react-navigation/native';
+import {
+  NavigationContainer,
+  useFocusEffect,
+  createNavigationContainerRef,
+} from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,7 +21,10 @@ import SuccessScreen from './components/SuccessScreen';
 import EditProfileScreen from './components/EditProfileScreen';
 import type { Session } from '@supabase/supabase-js';
 import OrderScreen from './components/OrderScreen';
-import { RootStackParamList } from "./app/navigation/types";
+import { RootStackParamList } from './app/navigation/types';
+import HistoryScreen from './components/HistoryScreen';
+import HistoryDetailScreen from './components/HistoryDetailScreen';
+
 
 export const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
@@ -79,15 +86,22 @@ const MainTabs = ({ session, navigation }: MainTabsProps) => {
         tabBarActiveTintColor: '#80f17e',
         tabBarIcon: ({ color, size }) => {
           let iconName: React.ComponentProps<typeof Ionicons>['name'] = 'map';
-          if (route.name === 'Location') iconName = 'location';
-          if (route.name === 'Profile') iconName = 'person';
+          if (route.name === 'Home') iconName = 'home-outline';
+          if (route.name === 'History') iconName = 'time-outline';
+          if (route.name === 'Profile') iconName = 'person-outline';
           return <Ionicons name={iconName} size={size} color={color} />;
         },
       })}>
-      <Tab.Screen name="Home">{() => <HomeScreen navigation={navigation} />}</Tab.Screen>
-      <Tab.Screen name="Location" component={LocationScreen} />
+      <Tab.Screen name="Home">
+        {() => <HomeScreen navigation={navigation} />}
+      </Tab.Screen>
+      <Tab.Screen name="History">
+        {() => <HistoryScreen session={session!} />}
+      </Tab.Screen>
       {session && (
-        <Tab.Screen name="Profile">{() => <ProfileScreen session={session} />}</Tab.Screen>
+        <Tab.Screen name="Profile">
+          {() => <ProfileScreen session={session} />}
+        </Tab.Screen>
       )}
     </Tab.Navigator>
   );
@@ -180,8 +194,13 @@ export default function App() {
           <RootStack.Screen name="MainTabs">
             {({ navigation }) => <MainTabs navigation={navigation} session={session} />}
           </RootStack.Screen>
-          <RootStack.Screen name="Order" component={OrderScreen} options={{ presentation: 'modal' }} />
+          <RootStack.Screen
+            name="Order"
+            component={OrderScreen}
+            options={{ presentation: 'modal' }}
+          />
           <RootStack.Screen name="EditProfileScreen" component={EditProfileScreen} />
+          <RootStack.Screen name="HistoryDetail" component={HistoryDetailScreen} />
         </RootStack.Navigator>
       )}
     </NavigationContainer>

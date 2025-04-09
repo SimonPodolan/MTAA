@@ -1,11 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Image, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  Image,
+  ActivityIndicator,
+} from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { supabase } from '../lib/supabase';
 import type { RootStackParamList } from '../app/navigation/types';
 import type { NavigationProp } from '@react-navigation/native';
-
+import { Ionicons } from '@expo/vector-icons';
 
 export default function EditProfileScreen() {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
@@ -41,66 +51,26 @@ export default function EditProfileScreen() {
   }, []);
 
   const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: 'images',
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 1,
-    });
-
-    if (!result.canceled && result.assets && result.assets.length > 0) {
-      await uploadImage(result.assets[0].uri);
-    }
-  };
-
-  const uploadImage = async (uri: string) => {
     try {
-      setLoading(true);
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 1,
+      });
 
-      const response = await fetch(uri);
-      const blob = await response.blob();
+      if (!result.canceled && result.assets.length > 0) {
+        const manipulated = await ImageManipulator.manipulateAsync(
+          result.assets[0].uri,
+          [{ resize: { width: 300, height: 300 } }],
+          { compress: 0.5, format: ImageManipulator.SaveFormat.JPEG }
+        );
 
-      const fileExt = uri.split('.').pop() || 'jpg';
-      const fileName = `${session.user.id}/avatar.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(fileName, blob, {
-          cacheControl: '3600',
-          upsert: true,
-        });
-
-      if (uploadError) {
-        throw uploadError;
+        setImage(manipulated.uri);
       }
-
-      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
-        .from('avatars')
-        .createSignedUrl(fileName, 3600);
-
-      let finalUrl = '';
-
-      if (signedUrlData?.signedUrl) {
-        finalUrl = signedUrlData.signedUrl;
-      } else {
-        const { data: publicUrlData } = supabase.storage
-          .from('avatars')
-          .getPublicUrl(fileName);
-
-        if (publicUrlData?.publicUrl) {
-          finalUrl = publicUrlData.publicUrl;
-        } else {
-          throw new Error('No signed URL or public URL available');
-        }
-      }
-
-      setImage(finalUrl);
-      Alert.alert('Success', 'Image uploaded successfully!');
-    } catch (err) {
-      console.error('Upload error:', err);
-      Alert.alert('Error uploading image', err instanceof Error ? err.message : String(err));
-    } finally {
-      setLoading(false);
+    } catch (e) {
+      console.error(e);
+      Alert.alert('Error', 'Something went wrong while picking the image.');
     }
   };
 
@@ -159,7 +129,6 @@ export default function EditProfileScreen() {
               index: 0,
               routes: [{ name: 'Welcome' as keyof RootStackParamList }],
             });
-
           },
         },
       ]
@@ -168,7 +137,16 @@ export default function EditProfileScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Edit Profile</Text>
+      {/* Header s tlačidlom späť naľavo a názvom vycentrovaným */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Ionicons name="arrow-back-outline" size={24} color="#fff" />
+        </TouchableOpacity>
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>Edit Profile</Text>
+        </View>
+        <View style={styles.rightPlaceholder} />
+      </View>
 
       <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
         {loading ? (
@@ -216,12 +194,25 @@ const styles = StyleSheet.create({
     padding: 20,
     justifyContent: 'center',
   },
-  title: {
-    color: '#fff',
-    fontSize: 22,
-    fontWeight: '600',
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 20,
-    textAlign: 'center',
+  },
+  backButton: {
+    padding: 8,
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 22,
+    color: '#fff',
+    fontWeight: '600',
+  },
+  rightPlaceholder: {
+    width: 32,
   },
   label: {
     color: '#fff',

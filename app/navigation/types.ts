@@ -1,4 +1,6 @@
 import { Session } from "@supabase/supabase-js";
+import type { Order } from '../navigation/Order';
+
 
 export type RootStackParamList = {
   Splash: undefined;
@@ -9,4 +11,5 @@ export type RootStackParamList = {
   MainTabs: undefined;
   Order: undefined;
   EditProfileScreen: { session: Session };
+  HistoryDetail: { order: Order };
 };

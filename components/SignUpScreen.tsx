@@ -15,7 +15,7 @@ import { supabase } from '../lib/supabase';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../app/navigation/types';
-import { Ionicons } from '@expo/vector-icons'; // adjust the path if needed
+import { Ionicons } from '@expo/vector-icons';
 
 export default function SignUpScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -61,6 +61,15 @@ export default function SignUpScreen() {
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.container}>
+        {/* Header s tlačidlom späť */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Welcome')}
+            style={styles.backButton}>
+            <Ionicons name="arrow-back-outline" size={24} color="#fff" />
+          </TouchableOpacity>
+        </View>
+
         <Text style={styles.title}>Create Account</Text>
 
         <Text style={styles.label}>First Name</Text>
@@ -99,6 +108,7 @@ export default function SignUpScreen() {
             autoCapitalize="none"
           />
         </View>
+
         <Text style={styles.label}>Password</Text>
         <View style={styles.inputWrapper}>
           <Ionicons name="shield-checkmark-outline" size={18} color="#aaa" style={styles.icon} />
@@ -111,6 +121,7 @@ export default function SignUpScreen() {
             onChangeText={setPassword}
           />
         </View>
+
         <Text style={styles.label}>Confirm Password</Text>
         <View style={styles.inputWrapper}>
           <Ionicons name="shield-checkmark-outline" size={18} color="#aaa" style={styles.icon} />
@@ -123,6 +134,7 @@ export default function SignUpScreen() {
             onChangeText={setConfirmPassword}
           />
         </View>
+
         <TouchableOpacity style={styles.button} onPress={handleSignUp} disabled={loading}>
           <Text style={styles.buttonText}>{loading ? 'Loading...' : 'Continue'}</Text>
         </TouchableOpacity>
@@ -137,6 +149,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#1C2129',
     padding: 20,
     justifyContent: 'center',
+  },
+  header: {
+    position: 'absolute',
+    top: 40,
+    left: 20,
+    zIndex: 1,
+  },
+  backButton: {
+    padding: 8,
+    paddingTop:95,
   },
   title: {
     color: '#fff',

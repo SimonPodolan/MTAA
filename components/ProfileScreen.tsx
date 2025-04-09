@@ -8,6 +8,8 @@ import {
   SafeAreaView,
   Alert,
   StatusBar,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
@@ -27,6 +29,9 @@ const Option = ({ icon, label }: { icon: IconName; label: string }) => (
 
 export const ProfileScreen = ({ session }: { session: Session }) => {
   const navigation = useNavigation<any>();
+  const [fullName, setFullName] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const handleLogout = async () => {
     const { error: updateError } = await supabase
@@ -39,33 +44,37 @@ export const ProfileScreen = ({ session }: { session: Session }) => {
       return;
     }
 
-    // Odhlásenie
     const { error } = await supabase.auth.signOut();
     if (error) {
       Alert.alert('Error', error.message);
     }
   };
 
+  const fetchProfile = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('first_name, last_name')
+      .eq('user_id', session.user.id)
+      .single();
 
-  const [fullName, setFullName] = useState('');
+    if (error) {
+      console.error('Error fetching profile:', error);
+    } else {
+      setFullName(`${data.first_name} ${data.last_name}`);
+    }
+    setLoading(false);
+  };
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('first_name, last_name')
-        .eq('user_id', session.user.id)
-        .single();
-
-      if (error) {
-        console.error('Error fetching profile:', error);
-      } else {
-        setFullName(`${data.first_name} ${data.last_name}`);
-      }
-    };
-
-    fetchProfile();
+    fetchProfile(); // Load once on mount
   }, []);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchProfile();
+    setRefreshing(false);
+  };
 
   useFocusEffect(() => {
     StatusBar.setBarStyle('light-content');
@@ -74,8 +83,13 @@ export const ProfileScreen = ({ session }: { session: Session }) => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle={'light-content'} />
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#80f17e" />
+        }>
         <Text style={styles.header}>My Profile</Text>
+
         <TouchableOpacity
           style={styles.card}
           onPress={() => {
@@ -84,8 +98,7 @@ export const ProfileScreen = ({ session }: { session: Session }) => {
             } else {
               console.error('Navigation is not ready');
             }
-          }}
-        >
+          }}>
           <View>
             <Text style={styles.cardTitle}>{fullName}</Text>
             <Text style={styles.cardSubtitle}>{session.user.email}</Text>
@@ -93,10 +106,7 @@ export const ProfileScreen = ({ session }: { session: Session }) => {
           <Ionicons name="chevron-forward" size={20} color="#fff" />
         </TouchableOpacity>
 
-
-
         <Option icon="gift" label="Referrals and rewards" />
-
         <Text style={styles.section}>Settings and Preferences</Text>
         <Option icon="notifications" label="Notifications" />
         <Option icon="language" label="Language" />
@@ -121,7 +131,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1d222a',
   },
   container: {
-    flex: 1,
+    flexGrow: 1,
     backgroundColor: '#1d222a',
     padding: 20,
   },
