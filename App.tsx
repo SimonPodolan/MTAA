@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, Keyboard, StatusBar } from 'react-native';
 import MapView, { Region } from 'react-native-maps';
 import * as Location from 'expo-location';
-import { NavigationContainer, useFocusEffect } from '@react-navigation/native';
+import { NavigationContainer, useFocusEffect, createNavigationContainerRef } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,16 +14,16 @@ import SplashScreen from './components/SplashScreen';
 import WelcomeScreen from './components/WelcomeScreen';
 import SignUpScreen from './components/SignUpScreen';
 import SuccessScreen from './components/SuccessScreen';
+import EditProfileScreen from './components/EditProfileScreen';
 import type { Session } from '@supabase/supabase-js';
 import OrderScreen from './components/OrderScreen';
+import { RootStackParamList } from "./app/navigation/types";
+
+export const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
 const Tab = createBottomTabNavigator();
 const RootStack = createNativeStackNavigator();
 
-/**
- * Samostatný komponent pre LocationScreen
- * (odstráni varovanie o inline funkcii v Tab.Screen)
- */
 function LocationScreen() {
   return <View style={{ flex: 1, backgroundColor: '#1d222a' }} />;
 }
@@ -85,9 +85,7 @@ const MainTabs = ({ session, navigation }: MainTabsProps) => {
         },
       })}>
       <Tab.Screen name="Home">{() => <HomeScreen navigation={navigation} />}</Tab.Screen>
-
       <Tab.Screen name="Location" component={LocationScreen} />
-
       {session && (
         <Tab.Screen name="Profile">{() => <ProfileScreen session={session} />}</Tab.Screen>
       )}
@@ -113,7 +111,6 @@ export default function App() {
           .single();
 
         if (!profile) {
-
           const { error: insertError } = await supabase.from('profiles').insert({
             user_id: data.session.user.id,
             first_name: 'First name',
@@ -138,7 +135,6 @@ export default function App() {
       setSession(session);
 
       if (session?.user?.id) {
-        // ✅ Pridaj túto kontrolu do listenera
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('*')
@@ -162,7 +158,6 @@ export default function App() {
       }
     });
 
-
     return () => {
       listener.subscription.unsubscribe();
     };
@@ -171,7 +166,7 @@ export default function App() {
   if (loading) return <LoadingScreen />;
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       {!session ? (
         <RootStack.Navigator screenOptions={{ headerShown: false }}>
           {!onboardingSeen && <RootStack.Screen name="Splash" component={SplashScreen} />}
@@ -185,11 +180,8 @@ export default function App() {
           <RootStack.Screen name="MainTabs">
             {({ navigation }) => <MainTabs navigation={navigation} session={session} />}
           </RootStack.Screen>
-          <RootStack.Screen
-            name="Order"
-            component={OrderScreen}
-            options={{ presentation: 'modal' }}
-          />
+          <RootStack.Screen name="Order" component={OrderScreen} options={{ presentation: 'modal' }} />
+          <RootStack.Screen name="EditProfileScreen" component={EditProfileScreen} />
         </RootStack.Navigator>
       )}
     </NavigationContainer>
@@ -222,19 +214,5 @@ const styles = StyleSheet.create({
   searchText: {
     color: '#aaa',
     fontSize: 16,
-  },
-  fullScreenSearch: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#1d222a',
-    paddingTop: 80,
-    paddingHorizontal: 20,
-    zIndex: 10,
-  },
-  fullInput: {
-    backgroundColor: '#2a2f3a',
-    color: 'white',
-    padding: 15,
-    borderRadius: 12,
-    fontSize: 18,
   },
 });

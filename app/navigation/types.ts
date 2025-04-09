@@ -1,3 +1,5 @@
+import { Session } from "@supabase/supabase-js";
+
 export type RootStackParamList = {
   Splash: undefined;
   Welcome: undefined;
@@ -6,4 +8,5 @@ export type RootStackParamList = {
   SignIn: undefined;
   MainTabs: undefined;
   Order: undefined;
+  EditProfileScreen: { session: Session };
 };
