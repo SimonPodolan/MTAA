@@ -7,8 +7,8 @@ import {
   StyleSheet,
   Alert,
   Image,
-  ActivityIndicator,
-} from 'react-native';
+  ActivityIndicator, SafeAreaView, TouchableWithoutFeedback, KeyboardAvoidingView
+} from "react-native";
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -103,8 +103,7 @@ export default function EditProfileScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header s tlačidlom späť naľavo a názvom vycentrovaným */}
-      <View style={styles.header}>
+      <SafeAreaView style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back-outline" size={24} color="#fff" />
         </TouchableOpacity>
@@ -112,7 +111,7 @@ export default function EditProfileScreen() {
           <Text style={styles.headerTitle}>Edit Profile</Text>
         </View>
         <View style={styles.rightPlaceholder} />
-      </View>
+      </SafeAreaView>
 
       <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
         {loading ? (
@@ -123,29 +122,30 @@ export default function EditProfileScreen() {
           <Image source={require('../assets/default-avatar.png')} style={styles.image} />
         )}
       </TouchableOpacity>
+      <TouchableWithoutFeedback>
+        <KeyboardAvoidingView>
+          <Text style={styles.label}>First Name</Text>
+          <TextInput
+            style={styles.input}
+            value={firstName}
+            onChangeText={setFirstName}
+            placeholder="Enter first name"
+            placeholderTextColor="#888"
+          />
 
-      <Text style={styles.label}>First Name</Text>
-      <TextInput
-        style={styles.input}
-        value={firstName}
-        onChangeText={setFirstName}
-        placeholder="Enter first name"
-        placeholderTextColor="#888"
-      />
-
-      <Text style={styles.label}>Last Name</Text>
-      <TextInput
-        style={styles.input}
-        value={lastName}
-        onChangeText={setLastName}
-        placeholder="Enter last name"
-        placeholderTextColor="#888"
-      />
-
+          <Text style={styles.label}>Last Name</Text>
+          <TextInput
+            style={styles.input}
+            value={lastName}
+            onChangeText={setLastName}
+            placeholder="Enter last name"
+            placeholderTextColor="#888"
+          />
+        </KeyboardAvoidingView>
+      </TouchableWithoutFeedback>
       <TouchableOpacity style={styles.button} onPress={handleSave} disabled={loading}>
         <Text style={styles.buttonText}>{loading ? 'Saving...' : 'Save Changes'}</Text>
       </TouchableOpacity>
-
     </View>
   );
 }
@@ -155,12 +155,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#1d222a',
     padding: 20,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 20,
+    paddingTop: 500,
   },
   backButton: {
     padding: 8,
@@ -193,7 +194,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
-    marginBottom: 10,
+    marginTop: 10,
   },
   buttonText: {
     color: '#1d222a',
@@ -202,6 +203,7 @@ const styles = StyleSheet.create({
   },
 
   imagePicker: {
+
     alignSelf: 'center',
     marginBottom: 20,
     width: 120,

@@ -39,18 +39,15 @@ export default function HistoryScreen({ session }: HistoryScreenProps) {
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [isEditing, setIsEditing] = useState<boolean>(false);
 
-  // Navigácia na detail
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   useEffect(() => {
-    fetchUserOrders();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    fetchUserOrders(true);
   }, []);
 
-  // Načítanie zoznamu objednávok
-  const fetchUserOrders = async () => {
+  const fetchUserOrders = async (isInitialLoad = false) => {
+    if (isInitialLoad) setLoading(true);
     try {
-      setLoading(true);
       const { data, error } = await supabase
         .from('orders')
         .select('*')
@@ -65,18 +62,16 @@ export default function HistoryScreen({ session }: HistoryScreenProps) {
     } catch (err) {
       console.error('Unexpected error:', err);
     } finally {
-      setLoading(false);
+      if (isInitialLoad) setLoading(false);
     }
   };
 
-  // Obnovenie obrazovky "potiahnutím nadol"
   const handleRefresh = async () => {
     setRefreshing(true);
-    await fetchUserOrders();
+    await fetchUserOrders(false);
     setRefreshing(false);
   };
 
-  // Funkcia na vymazanie objednávky (s potvrdením)
   const handleDeleteOrder = async (order_id: number) => {
     Alert.alert(
       'Delete Order',
@@ -96,7 +91,6 @@ export default function HistoryScreen({ session }: HistoryScreenProps) {
               if (error) {
                 Alert.alert('Error', error.message);
               } else {
-                // Odstránime objednávku aj lokálne, aby sme nemuseli znovu načítavať celý zoznam
                 setOrders((prev) => prev.filter((o) => o.order_id !== order_id));
               }
             } catch (err) {
@@ -109,7 +103,6 @@ export default function HistoryScreen({ session }: HistoryScreenProps) {
     );
   };
 
-  // Zoskupenie objednávok podľa mesiaca a roku
   const groupOrdersByMonth = (orders: Order[]) => {
     const grouped: Record<string, Order[]> = {};
     orders.forEach((order) => {
@@ -131,12 +124,10 @@ export default function HistoryScreen({ session }: HistoryScreenProps) {
 
   const sections = groupOrdersByMonth(orders);
 
-  // Render sekcie
   const renderSectionHeader = ({ section: { title } }: { section: { title: string } }) => (
     <Text style={styles.sectionTitle}>{title}</Text>
   );
 
-  // Render jednej objednávky
   const renderItem = ({ item }: { item: Order }) => {
     const dateObj = new Date(item.created_at);
     const day = dateObj.getDate();
@@ -144,7 +135,6 @@ export default function HistoryScreen({ session }: HistoryScreenProps) {
     const hours = dateObj.getHours();
     const minutes = dateObj.getMinutes();
 
-    // Ak je isEditing vypnuté => celý riadok je klikateľný a naviguje do detailu
     if (!isEditing) {
       return (
         <TouchableOpacity
@@ -154,7 +144,7 @@ export default function HistoryScreen({ session }: HistoryScreenProps) {
           <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
             <Ionicons name="car-outline" size={32} color="#80f17e" style={{ marginRight: 10 }} />
             <View>
-              <Text style={styles.itemLocation}>{item.location}</Text>
+              <Text numberOfLines={2} style={styles.itemLocation}>{item.location}</Text>
               <Text style={styles.itemDate}>
                 {day} {monthName}, {hours}:{minutes < 10 ? '0' + minutes : minutes}
               </Text>
@@ -164,10 +154,9 @@ export default function HistoryScreen({ session }: HistoryScreenProps) {
         </TouchableOpacity>
       );
     } else {
-      // Ak je isEditing zapnuté => zobrazíme koš a umožníme vymazať
       return (
         <View style={styles.itemContainer}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-end', flex: 1 }}>
             <Ionicons name="car-outline" size={32} color="#80f17e" style={{ marginRight: 10 }} />
             <View>
               <Text style={styles.itemLocation}>{item.location}</Text>
@@ -176,7 +165,6 @@ export default function HistoryScreen({ session }: HistoryScreenProps) {
               </Text>
             </View>
           </View>
-          {/* Tlačidlo vymazania */}
           <TouchableOpacity onPress={() => handleDeleteOrder(item.order_id)} style={styles.deleteButton}>
             <Ionicons name="trash-outline" size={24} color="red" />
           </TouchableOpacity>
@@ -186,45 +174,40 @@ export default function HistoryScreen({ session }: HistoryScreenProps) {
     }
   };
 
-  if (loading) {
-    return (
-      <View style={styles.loaderContainer}>
-        <ActivityIndicator size="large" color="#80f17e" />
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
-      {/* Header s tlačidlom "Edit" */}
       <View style={styles.header}>
         <Text style={styles.title}>My Rides</Text>
         <TouchableOpacity onPress={() => setIsEditing(!isEditing)} style={styles.editButton}>
-          <Ionicons name="create-outline" size={24} color="#80f17e" />
+          <Ionicons name="create-outline" size={30} color="#80f17e" />
         </TouchableOpacity>
       </View>
 
-      <SectionList
-        sections={sections}
-        keyExtractor={(item, index) => `${item.order_id}-${index}`}
-        renderSectionHeader={renderSectionHeader}
-        renderItem={renderItem}
-        contentContainerStyle={{ paddingBottom: 20 }}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            tintColor="#80f17e"
-          />
-        }
-      />
+      {loading ? (
+        <ActivityIndicator size="large" color="#80f17e" style={{ marginTop: 40 }} />
+      ) : (
+        <SectionList
+          sections={sections}
+          keyExtractor={(item, index) => `${item.order_id}-${index}`}
+          renderSectionHeader={renderSectionHeader}
+          renderItem={renderItem}
+          contentContainerStyle={{ paddingBottom: 20 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor="#80f17e"
+            />
+          }
+        />
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1,
     backgroundColor: '#1d222a',
     padding: 20,
   },
@@ -242,11 +225,12 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: '#fff',
     flex: 1,
-    paddingTop : 30,
+    paddingTop: 60,
+    fontWeight: 'bold',
   },
   editButton: {
     padding: 8,
-    paddingTop: 30,
+    paddingTop: 60,
   },
   sectionTitle: {
     fontSize: 16,
@@ -267,6 +251,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#fff',
     fontWeight: '500',
+    flex: 1,
+    marginRight: 50,
   },
   itemDate: {
     fontSize: 14,

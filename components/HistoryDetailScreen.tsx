@@ -33,10 +33,9 @@ function HistoryDetailScreen() {
         <View style={{ width: 24 }} />
       </View>
 
-      {/* Obsah detailu */}
       <View style={styles.row}>
         <Ionicons name="location-outline" size={24} color="#80f17e" style={styles.icon} />
-        <Text style={styles.rowText}>{order.location}</Text>
+        <Text numberOfLines={3} style={styles.rowText}>{order.location}</Text>
       </View>
 
       <View style={styles.row}>
@@ -85,7 +84,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 20,
-    paddingTop: 30,
+    paddingTop: 65,
   },
   headerTitle: {
     flex: 1,
@@ -108,5 +107,6 @@ const styles = StyleSheet.create({
   rowText: {
     color: '#fff',
     fontSize: 16,
+    flex: 1,
   },
 });
