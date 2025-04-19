@@ -1,24 +1,31 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../app/navigation/types'; // adjust the path if needed
+import { View, Text, StyleSheet, Image } from 'react-native';
+import { useRoute, RouteProp } from '@react-navigation/native';
+import type { RootStackParamList } from '../app/navigation/types';
+import { Ionicons } from '@expo/vector-icons';
 
-export default function WelcomeScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+type SuccessScreenRouteProp = RouteProp<RootStackParamList, 'SuccessScreen'>;
+
+export default function SuccessScreen() {
+  const route = useRoute<SuccessScreenRouteProp>();
+  const { onComplete } = route.params;
+
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      onComplete();
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <View style={styles.container}>
-      <Image source={require('../assets/logo.png')} style={styles.logo} resizeMode="contain" />
-      <Text style={styles.title}>Get Started!</Text>
-      <TouchableOpacity style={styles.primaryButton} onPress={() => navigation.navigate('SignUp')}>
-        <Text style={styles.primaryText}>Create Account</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={styles.secondaryButton}
-        onPress={() => navigation.navigate('SignIn')}>
-        <Text style={styles.secondaryText}>Sign In</Text>
-      </TouchableOpacity>
+      <View style={styles.content}>
+        <View style={styles.iconContainer}>
+          <Ionicons name="checkmark-circle" size={80} color="#80f17e" />
+        </View>
+        <Text style={styles.title}>Payment Successful!</Text>
+        <Text style={styles.subtitle}>Your order has been confirmed</Text>
+      </View>
     </View>
   );
 }
@@ -26,43 +33,26 @@ export default function WelcomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f1117',
+    backgroundColor: '#1d222a',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  content: {
+    alignItems: 'center',
     padding: 20,
   },
-  logo: {
-    width: 140,
-    height: 140,
-    marginBottom: 30,
+  iconContainer: {
+    marginBottom: 20,
   },
   title: {
-    color: 'white',
+    color: '#fff',
     fontSize: 24,
     fontWeight: '600',
-    marginBottom: 40,
-  },
-  primaryButton: {
-    backgroundColor: 'white',
-    borderRadius: 30,
-    width: '100%',
-    padding: 16,
-    alignItems: 'center',
     marginBottom: 10,
   },
-  primaryText: {
-    fontWeight: '600',
-  },
-  secondaryButton: {
-    borderWidth: 1,
-    borderColor: '#80f17e',
-    borderRadius: 30,
-    width: '100%',
-    padding: 16,
-    alignItems: 'center',
-  },
-  secondaryText: {
-    color: '#80f17e',
-    fontWeight: '600',
+  subtitle: {
+    color: '#aaa',
+    fontSize: 16,
+    textAlign: 'center',
   },
 });

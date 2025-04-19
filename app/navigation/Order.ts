@@ -9,4 +9,5 @@ export interface Order {
   price: number;
   status: string;
   created_at: string;
+  estimated_completion_time: string;
 }

@@ -61,7 +61,6 @@ export default function SignUpScreen() {
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.container}>
-        {/* Header s tlačidlom späť */}
         <View style={styles.header}>
           <TouchableOpacity
             onPress={() => navigation.navigate('Welcome')}
@@ -152,13 +151,12 @@ const styles = StyleSheet.create({
   },
   header: {
     position: 'absolute',
-    top: 40,
+    top: 60,
     left: 20,
     zIndex: 1,
   },
   backButton: {
     padding: 8,
-    paddingTop:95,
   },
   title: {
     color: '#fff',

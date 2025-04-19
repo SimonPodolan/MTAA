@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Keyboard, StatusBar } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text, Keyboard, StatusBar, ActivityIndicator, Vibration, Alert } from 'react-native';
 import MapView, { Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import {
@@ -24,6 +24,7 @@ import OrderScreen from './components/OrderScreen';
 import { RootStackParamList } from './app/navigation/types';
 import HistoryScreen from './components/HistoryScreen';
 import HistoryDetailScreen from './components/HistoryDetailScreen';
+import PaymentScreen from './components/PaymentScreen';
 
 
 export const navigationRef = createNavigationContainerRef<RootStackParamList>();
@@ -37,6 +38,8 @@ function LocationScreen() {
 
 const HomeScreen = ({ navigation }: any) => {
   const [region, setRegion] = useState<Region | null>(null);
+  const [activeOrder, setActiveOrder] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   useFocusEffect(() => {
     StatusBar.setBarStyle('dark-content');
@@ -57,16 +60,134 @@ const HomeScreen = ({ navigation }: any) => {
     })();
   }, []);
 
+  const updateOrderStatus = async (orderId: number, shouldVibrate = true) => {
+    const { error: updateError } = await supabase
+      .from('orders')
+      .update({ status: 'Completed' })
+      .eq('order_id', orderId);
+
+    if (updateError) {
+      console.error('Error updating order status:', updateError);
+    } else {
+      // Vibrate and show alert when order is completed
+      if (shouldVibrate) {
+        Vibration.vibrate(1000);
+        Alert.alert(
+          "Order Completed! 🎉",
+          "Your fuel delivery has been completed. Thank you for using our service!",
+          [{ text: "OK", style: "default" }]
+        );
+      }
+    }
+    setActiveOrder(null);
+  };
+
+  const fetchActiveOrder = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setActiveOrder(null);
+        return;
+      }
+
+      const { data: orders, error } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('status', 'Pending')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (error) {
+        console.error('Error fetching orders:', error);
+        setActiveOrder(null);
+        return;
+      }
+
+      if (orders && orders.length > 0) {
+        const order = orders[0];
+        const now = new Date().getTime();
+        const estimatedDate = new Date(order.estimated_completion_time).getTime();
+        
+        if (now >= estimatedDate) {
+          await updateOrderStatus(order.order_id, false); // Don't vibrate during regular checks
+        } else {
+          setActiveOrder(order);
+        }
+      } else {
+        setActiveOrder(null);
+      }
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      setActiveOrder(null);
+    }
+  };
+
+  useEffect(() => {
+    fetchActiveOrder();
+    const interval = setInterval(fetchActiveOrder, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const calculateTimeLeft = (estimatedTime: string) => {
+    const now = new Date().getTime();
+    const estimatedDate = new Date(estimatedTime).getTime();
+    const difference = estimatedDate - now;
+    
+    if (difference <= 0) {
+      if (activeOrder) {
+        updateOrderStatus(activeOrder.order_id, true); // Vibrate when timer reaches zero
+      }
+      return '0s';
+    }
+    
+    const seconds = Math.ceil(difference / 1000);
+    if (seconds >= 60) {
+      const minutes = Math.floor(seconds / 60);
+      const remainingSeconds = seconds % 60;
+      return `${minutes}m ${remainingSeconds}s`;
+    }
+    return `${seconds}s`;
+  };
+
+  const calculateDistance = () => {
+    return '8km';
+  };
+
   return (
     <View style={styles.container}>
       {region && <MapView initialRegion={region} showsUserLocation style={styles.map} />}
       <View style={styles.searchWrapper}>
-        <TouchableOpacity
-          onPress={() => navigation.navigate('Order')}
-          style={styles.searchBar}
-          activeOpacity={0.7}>
-          <Text style={styles.searchText}>Enter destination</Text>
-        </TouchableOpacity>
+        {isLoading ? (
+          <View style={styles.activeOrderContainer}>
+            <ActivityIndicator color="#1d222a" />
+          </View>
+        ) : activeOrder ? (
+          <View style={styles.activeOrderContainer}>
+            <View style={styles.activeOrderInfo}>
+              <View style={styles.distanceContainer}>
+                <Text style={styles.distanceText}>{calculateDistance()}</Text>
+              </View>
+              <View style={styles.timeContainer}>
+                <Text style={styles.timeText}>
+                  {calculateTimeLeft(activeOrder.estimated_completion_time)}
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={styles.pendingButton}
+              disabled={true}>
+              <Text style={styles.pendingButtonText}>Pending...</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Order')}
+            style={styles.searchBar}
+            activeOpacity={0.7}>
+            <Text style={styles.searchText}>Enter destination</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -137,6 +258,20 @@ export default function App() {
           } else {
             console.log('Profile successfully created!');
           }
+        } else {
+          setOnboardingSeen(profile.onboarding_seen);
+        }
+      } else {
+        // If no session, check if we need to show onboarding
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('onboarding_seen')
+          .eq('user_id', 'temp')
+          .single();
+        
+        // If no profile data or onboarding_seen is false, set onboardingSeen to false
+        if (!profileData || profileData.onboarding_seen === false) {
+          setOnboardingSeen(false);
         }
       }
 
@@ -146,6 +281,7 @@ export default function App() {
     loadSession();
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      console.log('Auth state changed:', _event, session ? 'Session exists' : 'No session');
       setSession(session);
 
       if (session?.user?.id) {
@@ -168,6 +304,20 @@ export default function App() {
           } else {
             console.log('Profile created via auth state change!');
           }
+        } else if (profile) {
+          setOnboardingSeen(profile.onboarding_seen);
+        }
+      } else {
+        // When logged out, check if we need to show onboarding
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('onboarding_seen')
+          .eq('user_id', 'temp')
+          .single();
+        
+        // If no profile data or onboarding_seen is false, set onboardingSeen to false
+        if (!profileData || profileData.onboarding_seen === false) {
+          setOnboardingSeen(false);
         }
       }
     });
@@ -186,7 +336,6 @@ export default function App() {
           {!onboardingSeen && <RootStack.Screen name="Splash" component={SplashScreen} />}
           {!onboardingSeen && <RootStack.Screen name="Welcome" component={WelcomeScreen} />}
           <RootStack.Screen name="SignUp" component={SignUpScreen} />
-          <RootStack.Screen name="Success" component={SuccessScreen} />
           <RootStack.Screen name="SignIn" component={AuthScreen} />
         </RootStack.Navigator>
       ) : (
@@ -201,6 +350,15 @@ export default function App() {
           />
           <RootStack.Screen name="EditProfileScreen" component={EditProfileScreen} />
           <RootStack.Screen name="HistoryDetail" component={HistoryDetailScreen} />
+          <RootStack.Screen name="Payment" component={PaymentScreen} />
+          <RootStack.Screen 
+            name="SuccessScreen" 
+            component={SuccessScreen}
+            options={{ 
+              presentation: 'modal',
+              animation: 'fade'
+            }}
+          />
         </RootStack.Navigator>
       )}
     </NavigationContainer>
@@ -233,5 +391,46 @@ const styles = StyleSheet.create({
   searchText: {
     color: '#aaa',
     fontSize: 16,
+  },
+  activeOrderContainer: {
+    backgroundColor: '#fff',
+    width: '90%',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  activeOrderInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 15,
+    backgroundColor: '#fff',
+  },
+  distanceContainer: {
+    flex: 1,
+  },
+  distanceText: {
+    color: '#1d222a',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  timeContainer: {
+    flex: 1,
+    alignItems: 'flex-end',
+  },
+  timeText: {
+    color: '#1d222a',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  pendingButton: {
+    backgroundColor: '#1d222a',
+    width: '100%',
+    padding: 15,
+    alignItems: 'center',
+  },
+  pendingButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

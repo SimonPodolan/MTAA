@@ -8,11 +8,12 @@ import {
   TouchableOpacity,
   Alert,
   RefreshControl,
+  StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 import type { Session } from '@supabase/supabase-js';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../app/navigation/types';
 
@@ -27,6 +28,7 @@ export interface Order {
   price: number;
   status: string;
   created_at: string;
+  estimated_completion_time: string;
 }
 
 type HistoryScreenProps = {
@@ -40,6 +42,10 @@ export default function HistoryScreen({ session }: HistoryScreenProps) {
   const [isEditing, setIsEditing] = useState<boolean>(false);
 
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+
+  useFocusEffect(() => {
+    StatusBar.setBarStyle('light-content');
+  });
 
   useEffect(() => {
     fetchUserOrders(true);
@@ -156,7 +162,7 @@ export default function HistoryScreen({ session }: HistoryScreenProps) {
     } else {
       return (
         <View style={styles.itemContainer}>
-          <View style={{ flexDirection: 'row', alignItems: 'flex-end', flex: 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
             <Ionicons name="car-outline" size={32} color="#80f17e" style={{ marginRight: 10 }} />
             <View>
               <Text style={styles.itemLocation}>{item.location}</Text>
@@ -165,10 +171,12 @@ export default function HistoryScreen({ session }: HistoryScreenProps) {
               </Text>
             </View>
           </View>
-          <TouchableOpacity onPress={() => handleDeleteOrder(item.order_id)} style={styles.deleteButton}>
-            <Ionicons name="trash-outline" size={24} color="red" />
-          </TouchableOpacity>
-          <Text style={styles.itemPrice}>{Number(item.price)?.toFixed(2)}€</Text>
+          <View style={styles.rightContainer}>
+            <Text style={styles.itemPrice}>{Number(item.price)?.toFixed(2)}€</Text>
+            <TouchableOpacity onPress={() => handleDeleteOrder(item.order_id)} style={styles.deleteButton}>
+              <Ionicons name="trash-outline" size={24} color="red" />
+            </TouchableOpacity>
+          </View>
         </View>
       );
     }
@@ -179,7 +187,11 @@ export default function HistoryScreen({ session }: HistoryScreenProps) {
       <View style={styles.header}>
         <Text style={styles.title}>My Rides</Text>
         <TouchableOpacity onPress={() => setIsEditing(!isEditing)} style={styles.editButton}>
-          <Ionicons name="create-outline" size={30} color="#80f17e" />
+          <Ionicons 
+            name={isEditing ? "checkmark-outline" : "create-outline"} 
+            size={30} 
+            color="#80f17e" 
+          />
         </TouchableOpacity>
       </View>
 
@@ -191,7 +203,7 @@ export default function HistoryScreen({ session }: HistoryScreenProps) {
           keyExtractor={(item, index) => `${item.order_id}-${index}`}
           renderSectionHeader={renderSectionHeader}
           renderItem={renderItem}
-          contentContainerStyle={{ paddingBottom: 20 }}
+          contentContainerStyle={{ paddingBottom: 100 }}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -264,7 +276,17 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginLeft: 10,
   },
+  rightContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
   deleteButton: {
-    marginRight: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#2a2f3a',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

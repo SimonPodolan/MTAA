@@ -10,6 +10,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../app/navigation/types';
 import Slider from '@react-native-community/slider';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,10 +30,38 @@ const OrderScreen = () => {
   const [amount, setAmount] = useState(10);
   const [company, setCompany] = useState('Slovnaft');
   const [loading, setLoading] = useState(false);
+  const [estimatedTime, setEstimatedTime] = useState<string>('');
 
   const pricePerLiter = 1.81;
   const estimatedPrice = (pricePerLiter * amount).toFixed(2);
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+
+  // Calculate estimated completion time based on order details
+  useEffect(() => {
+    // Base time in seconds (30 seconds)
+    let baseTime = 5;
+    
+    // Add time based on amount (2 seconds per liter)
+    const amountTime = amount * 2;
+    
+    // Add time based on company (different companies have different service speeds)
+    let companyTime = 0;
+    if (company === 'Slovnaft') companyTime = 1;
+    else if (company === 'SHELL') companyTime = 10;
+    else if (company === 'OMV') companyTime = 12;
+    
+    // Calculate total time in seconds
+    const totalSeconds = baseTime + amountTime + companyTime;
+    
+    // Convert to minutes if needed
+    if (totalSeconds >= 60) {
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      setEstimatedTime(`${minutes}m ${seconds}s`);
+    } else {
+      setEstimatedTime(`${totalSeconds}s`);
+    }
+  }, [amount, company]);
 
   const fetchLocations = async (query: string) => {
     try {
@@ -105,8 +135,17 @@ const OrderScreen = () => {
         return;
       }
 
-      // Vlož objednávku do databázy
-      const { error } = await supabase.from('orders').insert({
+      // Calculate estimated completion time
+      const now = new Date();
+      // Convert the time string to seconds for calculation
+      const timeInSeconds = estimatedTime.includes('m') 
+        ? parseInt(estimatedTime.split('m')[0]) * 60 + parseInt(estimatedTime.split('m')[1].replace('s', ''))
+        : parseInt(estimatedTime.replace('s', ''));
+      
+      const estimatedCompletionTime = new Date(now.getTime() + (timeInSeconds * 1000));
+      
+      // Create order details object
+      const orderDetails = {
         user_id: user.id,
         location,
         fuel_type: fuelType,
@@ -114,16 +153,12 @@ const OrderScreen = () => {
         company,
         price_per_liter: pricePerLiter,
         price: Number(estimatedPrice),
-        status: 'Pending',
-        created_at: new Date().toISOString(),
-      });
+        estimated_completion_time: estimatedCompletionTime.toISOString(),
+      };
 
-      if (error) {
-        console.error('Error creating order:', error);
-        alert('There was an error creating your order. Please try again.');
-      } else {
-        alert('Order successfully created!');
-      }
+      // Navigate to payment screen with the order details
+      navigation.navigate('Payment', { orderDetails });
+
     } catch (err) {
       console.error('Unexpected error:', err);
       alert('An unexpected error occurred.');
@@ -211,6 +246,13 @@ const OrderScreen = () => {
 
       <Text style={styles.summary}>Cost per liter: {pricePerLiter}$</Text>
       <Text style={styles.summary}>Estimated price: {estimatedPrice}$</Text>
+      
+      <View style={styles.timeEstimateContainer}>
+        <Ionicons name="time-outline" size={24} color="#80f17e" />
+        <Text style={styles.timeEstimateText}>
+          Estimated completion time: {estimatedTime}
+        </Text>
+      </View>
 
       <TouchableOpacity style={styles.nextButton} onPress={handleCreateOrder}>
         <Text style={styles.nextButtonText}>Next</Text>
@@ -351,5 +393,18 @@ const styles = StyleSheet.create({
     padding: 8,
     color: 'white',
     marginBottom: 20,
+  },
+  timeEstimateContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2a2f3a',
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 20,
+  },
+  timeEstimateText: {
+    color: '#fff',
+    fontSize: 16,
+    marginLeft: 10,
   },
 });
