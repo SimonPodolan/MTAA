@@ -29,7 +29,7 @@ import PaymentScreen from './components/PaymentScreen';
 import { ThemeProvider, useThemeContext } from './context/ThemeContext';
 import { customDarkTheme, customLightTheme } from './theme/themes';
 import AdminStackScreen from './AdminStack';
-
+import * as Notifications from 'expo-notifications';
 
 export const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
@@ -44,6 +44,7 @@ const HomeScreen = ({ navigation }: any) => {
   const [region, setRegion] = useState<Region | null>(null);
   const [activeOrder, setActiveOrder] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
+
 
   useFocusEffect(() => {
     StatusBar.setBarStyle('dark-content');
@@ -75,7 +76,7 @@ const HomeScreen = ({ navigation }: any) => {
     } else {
       // Vibrate and show alert when order is completed
       if (shouldVibrate) {
-        Vibration.vibrate(1000);
+        Vibration.vibrate(100);
         Alert.alert(
           "Order Completed! 🎉",
           "Your fuel delivery has been completed. Thank you for using our service!",
@@ -243,6 +244,8 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<Session | null>(null);
   const [onboardingSeen, setOnboardingSeen] = useState<boolean>(false);
+  const [user, setUser] = useState<Session['user'] | null>(null);
+
 
   const { theme } = useThemeContext();
   const currentTheme = theme === 'dark' ? customDarkTheme : customLightTheme;

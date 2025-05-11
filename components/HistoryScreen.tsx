@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -13,9 +13,19 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 import type { Session } from '@supabase/supabase-js';
-import { useNavigation, useFocusEffect ,useTheme} from '@react-navigation/native';
+import {
+  useNavigation,
+  useFocusEffect,
+  useTheme,
+} from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../app/navigation/types';
+import NetInfo from '@react-native-community/netinfo';
+import {
+  saveOrdersToCache,
+  loadOrdersFromCache,
+} from '../utils/offlineStorage';
+import { Accelerometer } from 'expo-sensors';
 
 export interface Order {
   order_id: number;
@@ -36,22 +46,69 @@ type HistoryScreenProps = {
 };
 
 export default function HistoryScreen({ session }: HistoryScreenProps) {
+  // ------------------- state -------------------
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [isConnected, setIsConnected] = useState<boolean>(true);
 
   const { colors } = useTheme();
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
-  useFocusEffect(() => {
-    StatusBar.setBarStyle('light-content');
-  });
-
+  // ------------------- effects -------------------
+  // NetInfo listener – sleduje pripojenie/odpojenie
   useEffect(() => {
-    fetchUserOrders(true);
+    const unsub = NetInfo.addEventListener((state) => {
+      setIsConnected(!!state.isConnected);
+    });
+    return () => unsub();
   }, []);
 
+  // Načítanie cache + (ak online) fetch zo Supabase
+  useEffect(() => {
+    (async () => {
+      const cachedOrders = await loadOrdersFromCache();
+      if (cachedOrders?.length) setOrders(cachedOrders as Order[]);
+
+
+      if (isConnected) fetchUserOrders(true);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isConnected, session.user.id]);
+
+  // Nastav status bar v rámci obrazovky histórie
+  useFocusEffect(
+    useCallback(() => {
+      StatusBar.setBarStyle('light-content');
+    }, []),
+  );
+  useEffect(() => {
+    let lastX = 0, lastY = 0, lastZ = 0;
+
+    const subscription = Accelerometer.addListener(({ x, y, z }) => {
+      const deltaX = Math.abs(x - lastX);
+      const deltaY = Math.abs(y - lastY);
+      const deltaZ = Math.abs(z - lastZ);
+
+      if (deltaX + deltaY + deltaZ > 2) {
+        if (orders.length > 0) {
+          const latest = orders[0];
+          handleDeleteOrder(latest.order_id);
+        }
+      }
+
+      lastX = x;
+      lastY = y;
+      lastZ = z;
+    });
+
+    Accelerometer.setUpdateInterval(300);
+    return () => subscription.remove();
+  }, [orders]);
+
+  // ------------------- fetch -------------------
   const fetchUserOrders = async (isInitialLoad = false) => {
     if (isInitialLoad) setLoading(true);
     try {
@@ -65,6 +122,7 @@ export default function HistoryScreen({ session }: HistoryScreenProps) {
         console.error('Error fetching orders:', error);
       } else {
         setOrders(data || []);
+        await saveOrdersToCache(data || []);
       }
     } catch (err) {
       console.error('Unexpected error:', err);
@@ -73,43 +131,45 @@ export default function HistoryScreen({ session }: HistoryScreenProps) {
     }
   };
 
+  // ------------------- handlers -------------------
   const handleRefresh = async () => {
+    if (!isConnected) return; // offline – nerefreshuj
+
     setRefreshing(true);
     await fetchUserOrders(false);
     setRefreshing(false);
   };
 
   const handleDeleteOrder = async (order_id: number) => {
-    Alert.alert(
-      'Delete Order',
-      'Are you sure you want to delete this order?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const { error } = await supabase
-                .from('orders')
-                .delete()
-                .eq('order_id', order_id);
+    Alert.alert('Delete Order', 'Are you sure you want to delete this order?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const { error } = await supabase
+              .from('orders')
+              .delete()
+              .eq('order_id', order_id);
 
-              if (error) {
-                Alert.alert('Error', error.message);
-              } else {
-                setOrders((prev) => prev.filter((o) => o.order_id !== order_id));
-              }
-            } catch (err) {
-              console.error('Unexpected error:', err);
+            if (error) {
+              Alert.alert('Error', error.message);
+            } else {
+              setOrders((prev) => prev.filter((o) => o.order_id !== order_id));
+              await saveOrdersToCache(
+                orders.filter((o) => o.order_id !== order_id),
+              );
             }
-          },
+          } catch (err) {
+            console.error('Unexpected error:', err);
+          }
         },
-      ],
-      { cancelable: true }
-    );
+      },
+    ]);
   };
 
+  // ------------------- utils -------------------
   const groupOrdersByMonth = (orders: Order[]) => {
     const grouped: Record<string, Order[]> = {};
     orders.forEach((order) => {
@@ -117,12 +177,9 @@ export default function HistoryScreen({ session }: HistoryScreenProps) {
       const month = dateObj.toLocaleString('en-US', { month: 'short' });
       const year = dateObj.getFullYear();
       const groupTitle = `${month} ${year}`;
-      if (!grouped[groupTitle]) {
-        grouped[groupTitle] = [];
-      }
+      if (!grouped[groupTitle]) grouped[groupTitle] = [];
       grouped[groupTitle].push(order);
     });
-
     return Object.keys(grouped).map((title) => ({
       title,
       data: grouped[title],
@@ -131,9 +188,12 @@ export default function HistoryScreen({ session }: HistoryScreenProps) {
 
   const sections = groupOrdersByMonth(orders);
 
-  const renderSectionHeader = ({ section: { title } }: { section: { title: string } }) => (
-    <Text style={[styles.sectionTitle, { color: colors.text }]}>{title}</Text>
-  );
+  // ------------------- render -------------------
+  const renderSectionHeader = ({
+                                 section: { title },
+                               }: {
+    section: { title: string };
+  }) => <Text style={[styles.sectionTitle, { color: colors.text }]}>{title}</Text>;
 
   const renderItem = ({ item }: { item: Order }) => {
     const dateObj = new Date(item.created_at);
@@ -142,60 +202,87 @@ export default function HistoryScreen({ session }: HistoryScreenProps) {
     const hours = dateObj.getHours();
     const minutes = dateObj.getMinutes();
 
+    const commonLeft = (
+      <>
+        <Ionicons
+          name="car-outline"
+          size={32}
+          color="#80f17e"
+          style={{ marginRight: 10 }}
+        />
+        <View>
+          <Text
+            numberOfLines={2}
+            style={[styles.itemLocation, { color: colors.text }]}
+          >
+            {item.location}
+          </Text>
+          <Text style={[styles.itemDate, { color: colors.text }]}> {day} {monthName}, {hours}:{minutes < 10 ? '0' + minutes : minutes}</Text>
+        </View>
+      </>
+    );
+
     if (!isEditing) {
       return (
         <TouchableOpacity
           onPress={() => navigation.navigate('HistoryDetail', { order: item })}
-          style={[styles.itemContainer, { backgroundColor: colors.card }]}
-        >
+          style={[styles.itemContainer, { backgroundColor: colors.card }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-            <Ionicons name="car-outline" size={32} color="#80f17e" style={{ marginRight: 10 }} />
-            <View>
-              <Text numberOfLines={2} style={[styles.itemLocation, { color: colors.text }]}>{item.location}</Text>
-              <Text style={[styles.itemDate, { color: colors.text }]}>
-                {day} {monthName}, {hours}:{minutes < 10 ? '0' + minutes : minutes}
-              </Text>
-            </View>
+            {commonLeft}
           </View>
-          <Text style={[styles.itemPrice, { color: colors.text }]}>{Number(item.price)?.toFixed(2)}€</Text>
+          <Text style={[styles.itemPrice, { color: colors.text }]}>
+            {Number(item.price)?.toFixed(2)}€
+          </Text>
         </TouchableOpacity>
       );
-    } else {
-      return (
-        <View style={[styles.itemContainer, { backgroundColor: colors.card }]}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-            <Ionicons name="car-outline" size={32} color="#80f17e" style={{ marginRight: 10 }} />
-            <View>
-              <Text style={[styles.itemLocation, { color: colors.text }]}>{item.location}</Text>
-              <Text style={styles.itemDate}>
-                {day} {monthName}, {hours}:{minutes < 10 ? '0' + minutes : minutes}
-              </Text>
-            </View>
-          </View>
-          <View style={styles.rightContainer}>
-            <Text style={[styles.itemPrice, { color: colors.text }]}>{Number(item.price)?.toFixed(2)}€</Text>
-            <TouchableOpacity onPress={() => handleDeleteOrder(item.order_id)} style={styles.deleteButton}>
-              <Ionicons name="trash-outline" size={24} color="red" />
-            </TouchableOpacity>
-          </View>
-        </View>
-      );
     }
+
+    // edit mode
+    return (
+      <View style={[styles.itemContainer, { backgroundColor: colors.card }]}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+          {commonLeft}
+        </View>
+        <View style={styles.rightContainer}>
+          <Text style={[styles.itemPrice, { color: colors.text }]}>
+            {Number(item.price)?.toFixed(2)}€
+          </Text>
+          <TouchableOpacity
+            onPress={() => handleDeleteOrder(item.order_id)}
+            style={styles.deleteButton}>
+            <Ionicons name="trash-outline" size={24} color="red" />
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
   };
 
+  // ------------------- jsx -------------------
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-
-    <View style={styles.header}>
-      <Text style={[styles.title, { color: colors.text }]}>My Rides</Text>
-        <TouchableOpacity onPress={() => setIsEditing(!isEditing)} style={styles.editButton}>
+      <View style={styles.header}>
+        <Text style={[styles.title, { color: colors.text }]}>My Rides</Text>
+        <TouchableOpacity
+          onPress={() => setIsEditing(!isEditing)}
+          style={styles.editButton}>
           <Ionicons
-            name={isEditing ? "checkmark-outline" : "create-outline"} 
+            name={isEditing ? 'checkmark-outline' : 'create-outline'}
             size={30}
-            color="#80f17e" 
+            color="#80f17e"
           />
         </TouchableOpacity>
       </View>
+
+      {!isConnected && (
+        <Text
+          style={{
+            color: 'orange',
+            textAlign: 'center',
+            marginVertical: 4,
+          }}>
+          Ste offline – zobrazujú sa uložené údaje.
+        </Text>
+      )}
 
       {loading ? (
         <ActivityIndicator size="large" color="#80f17e" style={{ marginTop: 40 }} />

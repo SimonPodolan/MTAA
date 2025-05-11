@@ -1,20 +1,30 @@
+// navigation/AdminStack.tsx
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+
 import AdminScreen from './components/Admin/AdminScreen';
-import PendingOrdersScreen from './components/Admin/PendingOrdersScreen';
+import NavigationScreen from './components/Admin/NavigationScreen';
 
 export type AdminStackParamList = {
-  Admin: undefined;
-  PendingOrders: undefined;
+  AdminHome: undefined;
+  Navigation: { order: any };
 };
 
-const AdminStack = createNativeStackNavigator<AdminStackParamList>();
+const Stack = createNativeStackNavigator<AdminStackParamList>();
 
-const AdminStackScreen = () => (
-  <AdminStack.Navigator screenOptions={{ headerShown: false }}>
-    <AdminStack.Screen name="Admin" component={AdminScreen} />
-    <AdminStack.Screen name="PendingOrders" component={PendingOrdersScreen} />
-  </AdminStack.Navigator>
-);
-
-export default AdminStackScreen;
+export default function AdminStack() {
+  return (
+    <Stack.Navigator initialRouteName="AdminHome">
+      <Stack.Screen
+        name="AdminHome"
+        component={AdminScreen}
+        options={{ title: 'ObjednĂĄvky' }}
+      />
+      <Stack.Screen
+        name="Navigation"
+        component={NavigationScreen}
+        options={{ title: 'NavigĂĄcia' }}
+      />
+    </Stack.Navigator>
+  );
+}

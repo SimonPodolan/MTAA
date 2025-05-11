@@ -13,7 +13,7 @@ function HistoryDetailScreen() {
   const route = useRoute<HistoryDetailScreenRouteProp>();
   const { order } = route.params;
 
-  // Pomocná funkcia na formátovanie dátumu
+  // PomocnĂˇ funkcia na formĂˇtovanie dĂˇtumu
   const formatDate = (dateString: string) => {
     const dateObj = new Date(dateString);
     // Napr. "20 Oct 2023"
@@ -53,7 +53,7 @@ function HistoryDetailScreen() {
         <Text style={styles.rowText}>{order.amount} L</Text>
       </View>
 
-      {/* distance je len príklad – ak ho ukladáte do DB, použite order.distance */}
+      {/* distance je len prĂ­klad â€“ ak ho ukladĂˇte do DB, pouĹľite order.distance */}
       <View style={styles.row}>
         <Ionicons name="walk-outline" size={24} color="#80f17e" style={styles.icon} />
         <Text style={styles.rowText}>Distance: 30km</Text>

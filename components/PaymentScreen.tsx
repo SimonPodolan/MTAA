@@ -30,11 +30,15 @@ const PaymentScreen = () => {
 
       // Create the order in database after successful payment
       const now = new Date();
-      const { data: order, error } = await supabase.from('orders').insert({
-        ...orderDetails,
-        status: 'Pending',
-        created_at: now.toISOString(),
-      }).select().single();
+      const { data: order, error } = await supabase
+        .from('orders')
+        .insert({ ...orderDetails,
+          status: 'Pending',
+          is_approved: false,
+          created_at: now.toISOString(),
+        })
+        .select()
+        .single();
 
       if (error) throw error;
 

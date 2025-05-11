@@ -147,68 +147,7 @@ const OrderScreen = () => {
         estimated_completion_time: estimatedCompletionTime.toISOString(),
       };
 
-      const { data, error } = await supabase.from('orders').insert(orderDetails);
-
-      if (error) {
-        console.error('Error creating order:', error);
-        Alert.alert('Error', 'Failed to create order.');
-      } else {
-        navigation.navigate('Payment', { orderDetails });
-      }
-    } catch (err) {
-      console.error('Unexpected error:', err);
-      Alert.alert('Error', 'An unexpected error occurred.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCreateOrder = async () => {
-    try {
-      setLoading(true);
-
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        Alert.alert('Error', 'Please log in to create an order');
-        setLoading(false);
-        return;
-      }
-
-      const now = new Date();
-      const timeInSeconds = estimatedTime.includes('m')
-        ? parseInt(estimatedTime.split('m')[0]) * 60 + parseInt(estimatedTime.split('m')[1].replace('s', ''))
-        : parseInt(estimatedTime.replace('s', ''));
-
-      const estimatedCompletionTime = new Date(now.getTime() + timeInSeconds * 1000);
-
-      const orderDetails = {
-        user_id: user.id,
-        location,
-        fuel_type: fuelType,
-        amount,
-        company,
-        price_per_liter: pricePerLiter,
-        price: Number(estimatedPrice),
-        status: 'Pending',
-        is_approved: false,
-        estimated_completion_time: estimatedCompletionTime.toISOString(),
-        started_at: null,
-      };
-
-      const { data, error } = await supabase
-        .from('orders')
-        .insert(orderDetails)
-        .select('order_id')
-        .single(); // Fetch the inserted order_id
-
-      if (error) {
-        console.error('Error creating order:', error.message);
-        Alert.alert('Error', 'Failed to create order');
-        return;
-      }
-
-      // Navigate to Payment Screen with order ID
-      navigation.navigate('Payment', { orderId: data.order_id });
+      navigation.navigate('Payment', { orderDetails });
 
     } catch (err) {
       console.error('Unexpected error:', err);
@@ -222,17 +161,17 @@ const OrderScreen = () => {
   return (
 
     <ScrollView contentContainerStyle={[styles.container, { backgroundColor: colors.background }]}><View style={styles.locationRow}>
-        <TextInput
-          value={location}
-          onChangeText={setLocation}
-          style={styles.input}
-          placeholder="Enter location"
-          placeholderTextColor="#aaa"
-        />
-        <TouchableOpacity style={styles.gpsButton} onPress={getCurrentLocation}>
-          <Ionicons name="navigate-circle-outline" size={35} color="#80f17e" />
-        </TouchableOpacity>
-      </View>
+      <TextInput
+        value={location}
+        onChangeText={setLocation}
+        style={styles.input}
+        placeholder="Enter location"
+        placeholderTextColor="#aaa"
+      />
+      <TouchableOpacity style={styles.gpsButton} onPress={getCurrentLocation}>
+        <Ionicons name="navigate-circle-outline" size={35} color="#80f17e" />
+      </TouchableOpacity>
+    </View>
 
       {loading && <ActivityIndicator color="#80f17e" style={{ marginBottom: 10 }} />}
 
@@ -333,26 +272,26 @@ const OrderScreen = () => {
       <Text style={[styles.summary, { color: colors.text }]}>Estimated price: {estimatedPrice}$</Text>
 
       <View style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          padding: 15,
-          borderRadius: 10,
-          marginBottom: 20,
-          backgroundColor: isLight ? '#fff' : colors.card,
-          borderWidth: isLight ? 1 : 0,
-          borderColor: '#80f17e',
-        }}>
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 15,
+        borderRadius: 10,
+        marginBottom: 20,
+        backgroundColor: isLight ? '#fff' : colors.card,
+        borderWidth: isLight ? 1 : 0,
+        borderColor: '#80f17e',
+      }}>
         <Ionicons
           name="time-outline"
           size={24}
           color={isLight ? '#80f17e' : colors.text}
         />
         <Text style={{
-            fontSize: 16,
-            fontWeight: '500',
-            marginLeft: 10,
-            color: isLight ? '#80f17e' : colors.text,
-          }}>Estimated completion time: {estimatedTime}
+          fontSize: 16,
+          fontWeight: '500',
+          marginLeft: 10,
+          color: isLight ? '#80f17e' : colors.text,
+        }}>Estimated completion time: {estimatedTime}
         </Text>
       </View>
 
