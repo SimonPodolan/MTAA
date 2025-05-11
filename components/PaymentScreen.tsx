@@ -68,7 +68,7 @@ const PaymentScreen = () => {
       <View style={styles.content}>
         <View style={styles.card}>
           <Text style={styles.label}>Order Summary</Text>
-          
+
           <View style={styles.row}>
             <Text style={styles.rowLabel}>Location</Text>
             <Text style={styles.rowValue} numberOfLines={2}>{orderDetails.location}</Text>
@@ -95,7 +95,7 @@ const PaymentScreen = () => {
             <Text style={styles.totalLabel}>Total Amount</Text>
             <Text style={styles.totalValue}>{orderDetails.price?.toFixed(2)}€</Text>
           </View>
-          
+
           <View style={styles.timeEstimateContainer}>
             <Ionicons name="time-outline" size={20} color="#80f17e" />
             <Text style={styles.timeEstimateText}>
@@ -104,7 +104,7 @@ const PaymentScreen = () => {
           </View>
         </View>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.payButton, loading && styles.payButtonDisabled]}
           onPress={handlePayment}
           disabled={loading}
@@ -230,4 +230,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default PaymentScreen; 
+export default PaymentScreen;

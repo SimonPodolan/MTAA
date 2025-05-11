@@ -13,7 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 import type { Session } from '@supabase/supabase-js';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation, useFocusEffect ,useTheme} from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../app/navigation/types';
 
@@ -41,6 +41,7 @@ export default function HistoryScreen({ session }: HistoryScreenProps) {
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [isEditing, setIsEditing] = useState<boolean>(false);
 
+  const { colors } = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   useFocusEffect(() => {
@@ -131,7 +132,7 @@ export default function HistoryScreen({ session }: HistoryScreenProps) {
   const sections = groupOrdersByMonth(orders);
 
   const renderSectionHeader = ({ section: { title } }: { section: { title: string } }) => (
-    <Text style={styles.sectionTitle}>{title}</Text>
+    <Text style={[styles.sectionTitle, { color: colors.text }]}>{title}</Text>
   );
 
   const renderItem = ({ item }: { item: Order }) => {
@@ -145,34 +146,34 @@ export default function HistoryScreen({ session }: HistoryScreenProps) {
       return (
         <TouchableOpacity
           onPress={() => navigation.navigate('HistoryDetail', { order: item })}
-          style={styles.itemContainer}
+          style={[styles.itemContainer, { backgroundColor: colors.card }]}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
             <Ionicons name="car-outline" size={32} color="#80f17e" style={{ marginRight: 10 }} />
             <View>
-              <Text numberOfLines={2} style={styles.itemLocation}>{item.location}</Text>
-              <Text style={styles.itemDate}>
+              <Text numberOfLines={2} style={[styles.itemLocation, { color: colors.text }]}>{item.location}</Text>
+              <Text style={[styles.itemDate, { color: colors.text }]}>
                 {day} {monthName}, {hours}:{minutes < 10 ? '0' + minutes : minutes}
               </Text>
             </View>
           </View>
-          <Text style={styles.itemPrice}>{Number(item.price)?.toFixed(2)}€</Text>
+          <Text style={[styles.itemPrice, { color: colors.text }]}>{Number(item.price)?.toFixed(2)}€</Text>
         </TouchableOpacity>
       );
     } else {
       return (
-        <View style={styles.itemContainer}>
+        <View style={[styles.itemContainer, { backgroundColor: colors.card }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
             <Ionicons name="car-outline" size={32} color="#80f17e" style={{ marginRight: 10 }} />
             <View>
-              <Text style={styles.itemLocation}>{item.location}</Text>
+              <Text style={[styles.itemLocation, { color: colors.text }]}>{item.location}</Text>
               <Text style={styles.itemDate}>
                 {day} {monthName}, {hours}:{minutes < 10 ? '0' + minutes : minutes}
               </Text>
             </View>
           </View>
           <View style={styles.rightContainer}>
-            <Text style={styles.itemPrice}>{Number(item.price)?.toFixed(2)}€</Text>
+            <Text style={[styles.itemPrice, { color: colors.text }]}>{Number(item.price)?.toFixed(2)}€</Text>
             <TouchableOpacity onPress={() => handleDeleteOrder(item.order_id)} style={styles.deleteButton}>
               <Ionicons name="trash-outline" size={24} color="red" />
             </TouchableOpacity>
@@ -183,13 +184,14 @@ export default function HistoryScreen({ session }: HistoryScreenProps) {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>My Rides</Text>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+
+    <View style={styles.header}>
+      <Text style={[styles.title, { color: colors.text }]}>My Rides</Text>
         <TouchableOpacity onPress={() => setIsEditing(!isEditing)} style={styles.editButton}>
-          <Ionicons 
+          <Ionicons
             name={isEditing ? "checkmark-outline" : "create-outline"} 
-            size={30} 
+            size={30}
             color="#80f17e" 
           />
         </TouchableOpacity>

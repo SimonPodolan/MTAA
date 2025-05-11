@@ -101,6 +101,30 @@ export default function EditProfileScreen() {
     }
   };
 
+  const handleBecomeAdmin = async () => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_admin: 'true' })
+        .eq('user_id', session.user.id);
+
+      if (error) {
+        Alert.alert('Error', error.message);
+      } else {
+        Alert.alert('Success', 'You are now an admin');
+        // @ts-ignore
+        navigation.navigate('AdminStack', {
+          screen: 'Admin'
+        });
+
+      }
+    } catch (err) {
+      Alert.alert('Error', 'Something went wrong');
+    }
+  };
+
+
+
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.header}>
@@ -146,6 +170,9 @@ export default function EditProfileScreen() {
       <TouchableOpacity style={styles.button} onPress={handleSave} disabled={loading}>
         <Text style={styles.buttonText}>{loading ? 'Saving...' : 'Save Changes'}</Text>
       </TouchableOpacity>
+      <TouchableOpacity style={styles.button} onPress={handleBecomeAdmin}>
+        <Text style={styles.buttonText}>Become Admin</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -161,7 +188,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 20,
-    paddingTop: 500,
+    paddingTop: 50,
   },
   backButton: {
     padding: 8,

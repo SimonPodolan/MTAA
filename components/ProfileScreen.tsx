@@ -1,37 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  SafeAreaView,
-  Alert,
-  StatusBar,
-  ActivityIndicator,
-  RefreshControl,
+  View, Text, StyleSheet, TouchableOpacity, ScrollView,
+  SafeAreaView, Alert, StatusBar, RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 import type { Session } from '@supabase/supabase-js';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useTheme } from '@react-navigation/native';
 import { navigationRef } from '../App';
+import { useThemeContext } from '../context/ThemeContext';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
-const Option = ({ icon, label }: { icon: IconName; label: string }) => (
-  <TouchableOpacity style={styles.option}>
-    <Ionicons name={icon} size={20} color="#80f17e" style={{ marginRight: 10 }} />
-    <Text style={styles.optionText}>{label}</Text>
-    <Ionicons name="chevron-forward" size={18} color="#fff" style={{ marginLeft: 'auto' }} />
-  </TouchableOpacity>
-);
+const Option = ({ icon, label }: { icon: IconName; label: string }) => {
+  const { colors } = useTheme();
+
+  return (
+    <TouchableOpacity style={[styles.option, { backgroundColor: colors.card }]}>
+      <Ionicons name={icon} size={20} color="#80f17e" style={{ marginRight: 10 }} />
+      <Text style={[styles.optionText, { color: colors.text }]}>{label}</Text>
+      <Ionicons name="chevron-forward" size={18} color={colors.text} style={{ marginLeft: 'auto' }} />
+    </TouchableOpacity>
+  );
+};
 
 export const ProfileScreen = ({ session }: { session: Session }) => {
   const navigation = useNavigation<any>();
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
+  const { theme, toggleTheme } = useThemeContext();
+  const { colors } = useTheme();
+  const statusBarStyle = theme === 'dark' ? 'light-content' : 'dark-content';
+
 
   const handleLogout = async () => {
     const { error: updateError } = await supabase
@@ -67,7 +69,7 @@ export const ProfileScreen = ({ session }: { session: Session }) => {
   };
 
   useEffect(() => {
-    fetchProfile(); // Load once on mount
+    fetchProfile();
   }, []);
 
   const onRefresh = async () => {
@@ -81,17 +83,21 @@ export const ProfileScreen = ({ session }: { session: Session }) => {
   });
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar barStyle={'light-content'} />
+      <StatusBar
+        barStyle={statusBarStyle}
+        backgroundColor={colors.background}
+      />
       <ScrollView
-        contentContainerStyle={styles.container}
+        contentContainerStyle={{ flexGrow: 1, backgroundColor: colors.background, padding: 20 }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#80f17e" />
         }>
-        <Text style={styles.header}>My Profile</Text>
+        <Text style={[styles.header, { color: colors.text }]}>My Profile</Text>
 
         <TouchableOpacity
-          style={styles.card}
+          style={[styles.card, { backgroundColor: colors.card }]}
           onPress={() => {
             if (navigationRef.isReady()) {
               navigationRef.navigate('EditProfileScreen', { session });
@@ -106,19 +112,16 @@ export const ProfileScreen = ({ session }: { session: Session }) => {
           <Ionicons name="chevron-forward" size={20} color="#fff" />
         </TouchableOpacity>
 
-        <Option icon="gift" label="Referrals and rewards" />
-        <Text style={styles.section}>Settings and Preferences</Text>
-        <Option icon="notifications" label="Notifications" />
-        <Option icon="language" label="Language" />
-        <Option icon="shield-checkmark" label="Security" />
-
-        <Text style={styles.section}>Support</Text>
-        <Option icon="help-buoy" label="Help centre" />
-        <Option icon="flag" label="Report a bug" />
-
         <TouchableOpacity style={styles.logout} onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={18} color="red" />
           <Text style={styles.logoutText}>Log out</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', marginTop: 20 }} onPress={toggleTheme}>
+          <Ionicons name="contrast" size={18} color="#80f17e" />
+          <Text style={{ color: '#80f17e', marginLeft: 10 }}>
+            Prepni na {theme === 'dark' ? 'Light' : 'Dark'} režim
+          </Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -141,6 +144,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     marginBottom: 20,
     textAlign: 'center',
+    paddingTop: 60,
   },
   card: {
     backgroundColor: '#2a2f3a',

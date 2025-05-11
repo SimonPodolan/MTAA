@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image } from 'react-native';
-import { useRoute, RouteProp } from '@react-navigation/native';
+import { View, Text, StyleSheet } from 'react-native';
+import { useRoute, RouteProp, CommonActions, useNavigation } from '@react-navigation/native';
 import type { RootStackParamList } from '../app/navigation/types';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -8,14 +8,25 @@ type SuccessScreenRouteProp = RouteProp<RootStackParamList, 'SuccessScreen'>;
 
 export default function SuccessScreen() {
   const route = useRoute<SuccessScreenRouteProp>();
+  const navigation = useNavigation();
   const { onComplete } = route.params;
 
   React.useEffect(() => {
     const timer = setTimeout(() => {
-      onComplete();
+      if (onComplete) {
+        onComplete();
+      }
+      // Reset the navigation stack and navigate to MainTabs
+      navigation.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [{ name: 'MainTabs' }],
+        })
+      );
     }, 2000);
+
     return () => clearTimeout(timer);
-  }, []);
+  }, [navigation, onComplete]);
 
   return (
     <View style={styles.container}>

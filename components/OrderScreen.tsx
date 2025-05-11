@@ -7,15 +7,16 @@ import {
   StyleSheet,
   ScrollView,
   StatusBar,
-  ActivityIndicator,
-} from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+  ActivityIndicator, Alert
+} from "react-native";
+import { useFocusEffect, useNavigation, useTheme} from "@react-navigation/native";
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../app/navigation/types';
 import Slider from '@react-native-community/slider';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
+import colors from "tailwindcss/colors";
 
 
 const OrderScreen = () => {
@@ -32,6 +33,10 @@ const OrderScreen = () => {
   const [loading, setLoading] = useState(false);
   const [estimatedTime, setEstimatedTime] = useState<string>('');
 
+  const { colors, dark } = useTheme();
+  const isLight = !dark;
+
+
   const pricePerLiter = 1.81;
   const estimatedPrice = (pricePerLiter * amount).toFixed(2);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -40,19 +45,18 @@ const OrderScreen = () => {
   useEffect(() => {
     // Base time in seconds (30 seconds)
     let baseTime = 5;
-    
+
     // Add time based on amount (2 seconds per liter)
     const amountTime = amount * 2;
-    
-    // Add time based on company (different companies have different service speeds)
+
     let companyTime = 0;
     if (company === 'Slovnaft') companyTime = 1;
     else if (company === 'SHELL') companyTime = 10;
     else if (company === 'OMV') companyTime = 12;
-    
+
     // Calculate total time in seconds
     const totalSeconds = baseTime + amountTime + companyTime;
-    
+
     // Convert to minutes if needed
     if (totalSeconds >= 60) {
       const minutes = Math.floor(totalSeconds / 60);
@@ -113,38 +117,24 @@ const OrderScreen = () => {
     }
   };
 
-  const handleCreateOrder = async () => {
+  const createOrder = async () => {
     try {
       setLoading(true);
 
       const { data: { user } } = await supabase.auth.getUser();
-
       if (!user) {
-        alert('Please log in to create an order');
+        Alert.alert('Error', 'Please log in to create an order');
+        setLoading(false);
         return;
       }
 
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
-
-      if (profileError || !profile) {
-        alert('User profile not found. Please complete your registration first.');
-        return;
-      }
-
-      // Calculate estimated completion time
       const now = new Date();
-      // Convert the time string to seconds for calculation
-      const timeInSeconds = estimatedTime.includes('m') 
+      const timeInSeconds = estimatedTime.includes('m')
         ? parseInt(estimatedTime.split('m')[0]) * 60 + parseInt(estimatedTime.split('m')[1].replace('s', ''))
         : parseInt(estimatedTime.replace('s', ''));
-      
-      const estimatedCompletionTime = new Date(now.getTime() + (timeInSeconds * 1000));
-      
-      // Create order details object
+
+      const estimatedCompletionTime = new Date(now.getTime() + timeInSeconds * 1000);
+
       const orderDetails = {
         user_id: user.id,
         location,
@@ -153,22 +143,85 @@ const OrderScreen = () => {
         company,
         price_per_liter: pricePerLiter,
         price: Number(estimatedPrice),
+        status: 'Pending',
         estimated_completion_time: estimatedCompletionTime.toISOString(),
       };
 
-      // Navigate to payment screen with the order details
-      navigation.navigate('Payment', { orderDetails });
+      const { data, error } = await supabase.from('orders').insert(orderDetails);
 
+      if (error) {
+        console.error('Error creating order:', error);
+        Alert.alert('Error', 'Failed to create order.');
+      } else {
+        navigation.navigate('Payment', { orderDetails });
+      }
     } catch (err) {
       console.error('Unexpected error:', err);
-      alert('An unexpected error occurred.');
+      Alert.alert('Error', 'An unexpected error occurred.');
     } finally {
       setLoading(false);
     }
   };
+
+  const handleCreateOrder = async () => {
+    try {
+      setLoading(true);
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        Alert.alert('Error', 'Please log in to create an order');
+        setLoading(false);
+        return;
+      }
+
+      const now = new Date();
+      const timeInSeconds = estimatedTime.includes('m')
+        ? parseInt(estimatedTime.split('m')[0]) * 60 + parseInt(estimatedTime.split('m')[1].replace('s', ''))
+        : parseInt(estimatedTime.replace('s', ''));
+
+      const estimatedCompletionTime = new Date(now.getTime() + timeInSeconds * 1000);
+
+      const orderDetails = {
+        user_id: user.id,
+        location,
+        fuel_type: fuelType,
+        amount,
+        company,
+        price_per_liter: pricePerLiter,
+        price: Number(estimatedPrice),
+        status: 'Pending',
+        is_approved: false,
+        estimated_completion_time: estimatedCompletionTime.toISOString(),
+        started_at: null,
+      };
+
+      const { data, error } = await supabase
+        .from('orders')
+        .insert(orderDetails)
+        .select('order_id')
+        .single(); // Fetch the inserted order_id
+
+      if (error) {
+        console.error('Error creating order:', error.message);
+        Alert.alert('Error', 'Failed to create order');
+        return;
+      }
+
+      // Navigate to Payment Screen with order ID
+      navigation.navigate('Payment', { orderId: data.order_id });
+
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      Alert.alert('Error', 'An unexpected error occurred.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <View style={styles.locationRow}>
+
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: colors.background }]}><View style={styles.locationRow}>
         <TextInput
           value={location}
           onChangeText={setLocation}
@@ -197,30 +250,60 @@ const OrderScreen = () => {
       )}
 
       <View style={styles.buttonGroup}>
-        <TouchableOpacity
-          style={[styles.fuelButton, fuelType === 'Gasoline' && styles.fuelButtonActive]}
-          onPress={() => setFuelType('Gasoline')}>
-          <Text style={styles.fuelButtonText}>Gasoline</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.fuelButton, fuelType === 'Diesel' && styles.fuelButtonActive]}
-          onPress={() => setFuelType('Diesel')}>
-          <Text style={styles.fuelButtonText}>Diesel</Text>
-        </TouchableOpacity>
+        {['Gasoline', 'Diesel'].map((type) => {
+          const isActive = fuelType === type;
+          return (
+            <TouchableOpacity
+              key={type}
+              style={[
+                styles.fuelButton,
+                {
+                  backgroundColor: isActive ? '#80f17e' : 'transparent',
+                  borderColor: '#80f17e',
+                  borderWidth: 1,
+                },
+              ]}
+              onPress={() => setFuelType(type as 'Gasoline' | 'Diesel')}
+            >
+              <Text
+                style={{
+                  fontWeight: '600',
+                  fontSize: 16,
+                  color: isActive ? '#1d222a' : '#80f17e',
+                }}
+              >
+                {type}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       <View style={styles.buttonGroup}>
-        {['FuelSave', 'V-Power 95', 'V-Power 100'].map((variant) => (
-          <TouchableOpacity
-            key={variant}
-            style={[styles.chip, fuelVariant === variant && styles.chipActive]}
-            onPress={() => setFuelVariant(variant)}>
-            <Text style={styles.chipText}>{variant}</Text>
-          </TouchableOpacity>
-        ))}
+        {['FuelSave', 'V-Power 95', 'V-Power 100'].map((variant) => {
+          const isActive = fuelVariant === variant;
+          return (
+            <TouchableOpacity
+              key={variant}
+              style={[
+                styles.chip,
+                isActive && { backgroundColor: '#80f17e' }
+              ]}
+              onPress={() => setFuelVariant(variant)}
+            >
+              <Text style={{ color: isActive ? '#1d222a' : colors.text }}>
+                {variant}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
-      <Text style={styles.label}>Select amount of fuel: {amount}L</Text>
+
+      <Text style={[styles.label, { color: colors.text }]}>
+        Select amount of fuel: {amount}L
+      </Text>
+
       <Slider
         style={{ width: '100%', height: 40, marginBottom: 20 }}
         minimumValue={1}
@@ -234,29 +317,52 @@ const OrderScreen = () => {
       />
 
       <View style={styles.buttonGroup}>
-        {['Slovnaft', 'SHELL', 'OMV'].map((c) => (
-          <TouchableOpacity
-            key={c}
-            style={[styles.chip2, company === c && styles.chipActive]}
-            onPress={() => setCompany(c)}>
-            <Text style={styles.chipText}>{c}</Text>
-          </TouchableOpacity>
-        ))}
+        {['Slovnaft', 'SHELL', 'OMV'].map((c) => {
+          const isActive = company === c;
+          return (
+            <TouchableOpacity
+              key={c}
+              style={[styles.chip2, isActive && { backgroundColor: '#80f17e' }
+              ]} onPress={() => setCompany(c)}>
+              <Text style={{ color: isActive ? '#1d222a' : colors.text }}>{c}</Text>
+            </TouchableOpacity>);
+        })}
       </View>
 
-      <Text style={styles.summary}>Cost per liter: {pricePerLiter}$</Text>
-      <Text style={styles.summary}>Estimated price: {estimatedPrice}$</Text>
-      
-      <View style={styles.timeEstimateContainer}>
-        <Ionicons name="time-outline" size={24} color="#80f17e" />
-        <Text style={styles.timeEstimateText}>
-          Estimated completion time: {estimatedTime}
+      <Text style={[styles.summary, { color: colors.text }]}>Cost per liter: {pricePerLiter}$</Text>
+      <Text style={[styles.summary, { color: colors.text }]}>Estimated price: {estimatedPrice}$</Text>
+
+      <View style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          padding: 15,
+          borderRadius: 10,
+          marginBottom: 20,
+          backgroundColor: isLight ? '#fff' : colors.card,
+          borderWidth: isLight ? 1 : 0,
+          borderColor: '#80f17e',
+        }}>
+        <Ionicons
+          name="time-outline"
+          size={24}
+          color={isLight ? '#80f17e' : colors.text}
+        />
+        <Text style={{
+            fontSize: 16,
+            fontWeight: '500',
+            marginLeft: 10,
+            color: isLight ? '#80f17e' : colors.text,
+          }}>Estimated completion time: {estimatedTime}
         </Text>
       </View>
 
-      <TouchableOpacity style={styles.nextButton} onPress={handleCreateOrder}>
-        <Text style={styles.nextButtonText}>Next</Text>
+      <TouchableOpacity
+        style={[styles.nextButton, { backgroundColor: colors.text }]}
+        onPress={createOrder}
+      >
+        <Text style={[styles.nextButtonText, { color: colors.background }]}>Next</Text>
       </TouchableOpacity>
+
 
     </ScrollView>
   );
@@ -266,6 +372,7 @@ export default OrderScreen;
 
 const styles = StyleSheet.create({
   container: {
+    paddingTop: 60,
     padding: 20,
     backgroundColor: '#1d222a',
     flexGrow: 1,
@@ -274,9 +381,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#aaa',
     borderRadius: 8,
-    padding: 12,
+    padding: 10,
     color: 'white',
-    marginBottom: 20,
+    marginBottom: 10,
     flex: 1,
     marginRight: 0,
     marginLeft: 5,
@@ -307,14 +414,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#80f17e',
     borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   fuelButtonActive: {
-    backgroundColor: '#80f17e',
+    backgroundColor: '#80f17e'
   },
   fuelButtonText: {
-    color: '#fff',
-    textAlign: 'center',
     fontWeight: '600',
+    fontSize: 16,
   },
   chip: {
     paddingVertical: 10,
@@ -332,6 +440,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '500',
   },
+
   label: {
     color: '#fff',
     fontSize: 16,
@@ -397,14 +506,17 @@ const styles = StyleSheet.create({
   timeEstimateContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#2a2f3a',
+    borderWidth: 1,
+    borderColor: '#80f17e',
+    backgroundColor: '#fff',
     padding: 15,
     borderRadius: 10,
     marginBottom: 20,
   },
   timeEstimateText: {
-    color: '#fff',
+    color: '#80f17e',
     fontSize: 16,
     marginLeft: 10,
+    fontWeight: '500',
   },
 });

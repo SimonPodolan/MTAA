@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Keyboard, StatusBar, ActivityIndicator, Vibration, Alert } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text, StatusBar, ActivityIndicator, Vibration, Alert } from 'react-native';
 import MapView, { Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import {
   NavigationContainer,
   useFocusEffect,
   createNavigationContainerRef,
+  useTheme
 } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -25,6 +26,9 @@ import { RootStackParamList } from './app/navigation/types';
 import HistoryScreen from './components/HistoryScreen';
 import HistoryDetailScreen from './components/HistoryDetailScreen';
 import PaymentScreen from './components/PaymentScreen';
+import { ThemeProvider, useThemeContext } from './context/ThemeContext';
+import { customDarkTheme, customLightTheme } from './theme/themes';
+import AdminStackScreen from './AdminStack';
 
 
 export const navigationRef = createNavigationContainerRef<RootStackParamList>();
@@ -94,7 +98,7 @@ const HomeScreen = ({ navigation }: any) => {
         .from('orders')
         .select('*')
         .eq('user_id', user.id)
-        .eq('status', 'Pending')
+        .in('status', ['Approved', 'Completed'])
         .order('created_at', { ascending: false })
         .limit(1);
 
@@ -106,13 +110,12 @@ const HomeScreen = ({ navigation }: any) => {
 
       if (orders && orders.length > 0) {
         const order = orders[0];
-        const now = new Date().getTime();
-        const estimatedDate = new Date(order.estimated_completion_time).getTime();
-        
-        if (now >= estimatedDate) {
-          await updateOrderStatus(order.order_id, false); // Don't vibrate during regular checks
-        } else {
+
+        // Check if the order is approved and not yet completed
+        if (order.status === 'Approved') {
           setActiveOrder(order);
+        } else {
+          setActiveOrder(null);
         }
       } else {
         setActiveOrder(null);
@@ -123,6 +126,7 @@ const HomeScreen = ({ navigation }: any) => {
     }
   };
 
+
   useEffect(() => {
     fetchActiveOrder();
     const interval = setInterval(fetchActiveOrder, 1000);
@@ -130,17 +134,21 @@ const HomeScreen = ({ navigation }: any) => {
   }, []);
 
   const calculateTimeLeft = (estimatedTime: string) => {
+    if (!activeOrder || activeOrder.status !== 'Approved') {
+      return 'Waiting for admin approval...';
+    }
+
     const now = new Date().getTime();
     const estimatedDate = new Date(estimatedTime).getTime();
     const difference = estimatedDate - now;
-    
+
     if (difference <= 0) {
       if (activeOrder) {
         updateOrderStatus(activeOrder.order_id, true); // Vibrate when timer reaches zero
       }
       return '0s';
     }
-    
+
     const seconds = Math.ceil(difference / 1000);
     if (seconds >= 60) {
       const minutes = Math.floor(seconds / 60);
@@ -149,6 +157,7 @@ const HomeScreen = ({ navigation }: any) => {
     }
     return `${seconds}s`;
   };
+
 
   const calculateDistance = () => {
     return '8km';
@@ -199,12 +208,14 @@ type MainTabsProps = {
 };
 
 const MainTabs = ({ session, navigation }: MainTabsProps) => {
+
+  const { colors } = useTheme();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarStyle: { backgroundColor: '#1d222a' },
-        tabBarActiveTintColor: '#80f17e',
+        tabBarStyle: { backgroundColor: colors.card },
+        tabBarActiveTintColor: colors.primary,
         tabBarIcon: ({ color, size }) => {
           let iconName: React.ComponentProps<typeof Ionicons>['name'] = 'map';
           if (route.name === 'Home') iconName = 'home-outline';
@@ -228,10 +239,14 @@ const MainTabs = ({ session, navigation }: MainTabsProps) => {
   );
 };
 
-export default function App() {
+function App() {
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<Session | null>(null);
   const [onboardingSeen, setOnboardingSeen] = useState<boolean>(false);
+
+  const { theme } = useThemeContext();
+  const currentTheme = theme === 'dark' ? customDarkTheme : customLightTheme;
+
 
   useEffect(() => {
     const loadSession = async () => {
@@ -268,8 +283,7 @@ export default function App() {
           .select('onboarding_seen')
           .eq('user_id', 'temp')
           .single();
-        
-        // If no profile data or onboarding_seen is false, set onboardingSeen to false
+
         if (!profileData || profileData.onboarding_seen === false) {
           setOnboardingSeen(false);
         }
@@ -314,7 +328,7 @@ export default function App() {
           .select('onboarding_seen')
           .eq('user_id', 'temp')
           .single();
-        
+
         // If no profile data or onboarding_seen is false, set onboardingSeen to false
         if (!profileData || profileData.onboarding_seen === false) {
           setOnboardingSeen(false);
@@ -330,7 +344,7 @@ export default function App() {
   if (loading) return <LoadingScreen />;
 
   return (
-    <NavigationContainer ref={navigationRef}>
+    <NavigationContainer theme={currentTheme} ref={navigationRef}>
       {!session ? (
         <RootStack.Navigator screenOptions={{ headerShown: false }}>
           {!onboardingSeen && <RootStack.Screen name="Splash" component={SplashScreen} />}
@@ -351,10 +365,11 @@ export default function App() {
           <RootStack.Screen name="EditProfileScreen" component={EditProfileScreen} />
           <RootStack.Screen name="HistoryDetail" component={HistoryDetailScreen} />
           <RootStack.Screen name="Payment" component={PaymentScreen} />
-          <RootStack.Screen 
-            name="SuccessScreen" 
+          <RootStack.Screen name="AdminStack" component={AdminStackScreen} />
+          <RootStack.Screen
+            name="SuccessScreen"
             component={SuccessScreen}
-            options={{ 
+            options={{
               presentation: 'modal',
               animation: 'fade'
             }}
@@ -362,8 +377,17 @@ export default function App() {
         </RootStack.Navigator>
       )}
     </NavigationContainer>
+
   );
 }
+export default function AppWrapper() {
+  return (
+    <ThemeProvider>
+      <App />
+    </ThemeProvider>
+  );
+}
+
 
 const styles = StyleSheet.create({
   container: {
