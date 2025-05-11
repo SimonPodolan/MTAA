@@ -29,6 +29,8 @@ import PaymentScreen from './components/PaymentScreen';
 import { ThemeProvider, useThemeContext } from './context/ThemeContext';
 import { customDarkTheme, customLightTheme } from './theme/themes';
 import AdminStackScreen from './AdminStack';
+import * as Notifications from 'expo-notifications';
+
 
 
 export const navigationRef = createNavigationContainerRef<RootStackParamList>();
